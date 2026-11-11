@@ -532,26 +532,43 @@ if prompt:
             st.markdown(answer_text)
 
         else:
-            # Keep the original question intact for retrieval.
-            # Add only a short language instruction for Sinhala questions.
+            # Detect the language used by the user and answer accordingly:
+            # English question -> English answer
+            # Sinhala question -> Sinhala answer
+            # Sinhala + English question -> bilingual answer
             sinhala_chars = any(
-                "\u0D80" <= char <= "\u0DFF" for char in prompt
+                "\\u0D80" <= char <= "\\u0DFF" for char in prompt
+            )
+            english_chars = any(
+                ("A" <= char <= "Z") or ("a" <= char <= "z")
+                for char in prompt
             )
 
-            if sinhala_chars:
-                agent_question = (
-                    prompt
-                    + "\n\nPlease answer in clear, grammatically correct "
-                    "Sinhala. Use the selected plant's SOP as the source. "
-                    "Do not invent procedures or technical values."
+            if sinhala_chars and english_chars:
+                language_instruction = (
+                    "The user asked in both Sinhala and English. "
+                    "Answer bilingually: provide the explanation in Sinhala "
+                    "and English, keeping the same meaning and all important "
+                    "SOP steps in both languages. Use clear, grammatically "
+                    "correct Sinhala and clear English."
+                )
+            elif sinhala_chars:
+                language_instruction = (
+                    "The user asked in Sinhala. Answer only in clear, "
+                    "grammatically correct Sinhala."
                 )
             else:
-                agent_question = (
-                    prompt
-                    + "\n\nAnswer in the language used in the question. "
-                    "Use the selected plant's SOP as the source. "
-                    "Do not invent procedures or technical values."
+                language_instruction = (
+                    "The user asked in English. Answer only in clear English."
                 )
+
+            agent_question = (
+                prompt
+                + "\\n\\n"
+                + language_instruction
+                + " Use the selected plant's SOP as the source. "
+                "Do not invent procedures or technical values."
+            )
 
             try:
                 with st.spinner("Checking the SOPs..."):
