@@ -236,12 +236,17 @@ def make_example_question(plant_code, sop_number, topic):
 
 
 def select_sop_question(plant_code, question):
+    """
+    Queue a topic question and switch plants if required.
+
+    Do not assign to the selectbox widget key here. Streamlit does not allow
+    changing a widget's session-state value after that widget has been
+    instantiated during the current run.
+    """
     if plant_code != st.session_state.selected_plant:
         st.session_state.selected_plant = plant_code
         st.session_state.thread_id = str(uuid.uuid4())
 
-    # Keep the selectbox widget state synchronized with topic navigation.
-    st.session_state.plant_selector = plant_code
     st.session_state.pending_question = question
     st.rerun()
 
@@ -261,17 +266,16 @@ with st.sidebar:
         for code in plant_codes
     }
 
-    if (
-        "plant_selector" not in st.session_state
-        or st.session_state.plant_selector not in plant_codes
-    ):
-        st.session_state.plant_selector = st.session_state.selected_plant
+    # Use a plant-specific key so a topic click can switch plants safely.
+    # This avoids changing a widget's state after it has been instantiated.
+    selector_key = f"plant_selector_{st.session_state.selected_plant}"
 
     selected = st.selectbox(
         "Select plant",
         options=plant_codes,
         format_func=lambda code: plant_labels[code],
-        key="plant_selector",
+        index=plant_codes.index(st.session_state.selected_plant),
+        key=selector_key,
     )
 
     if selected != st.session_state.selected_plant:
