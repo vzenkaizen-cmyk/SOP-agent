@@ -12,13 +12,17 @@ import uuid
 import re
 from pathlib import Path
 
-import pdfplumber
 import streamlit as st
 
 from plant_registry import PLANTS, list_plant_codes
 from ingest import reindex_all, reindex_plant, CHROMA_DIR
 from retriever import collection_stats
 from agent import build_agent, run_agent
+
+try:
+    from pypdf import PdfReader
+except ImportError:
+    PdfReader = None
 
 
 st.set_page_config(
@@ -100,11 +104,6 @@ st.markdown(
         opacity: 0.75;
         line-height: 1.5;
     }
-
-    .sop-document {
-        font-size: 14px;
-        font-weight: 600;
-    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -120,181 +119,483 @@ def contains_sinhala(text: str) -> bool:
     return bool(re.search(r"[\u0D80-\u0DFF]", text))
 
 
-def prepare_agent_prompt(user_prompt: str) -> str:
+# ---------------------------------------------------------------------------
+# Plant-specific agent instructions
+# ---------------------------------------------------------------------------
+
+def prepare_agent_prompt(user_prompt: str, plant_code: str) -> str:
+
+    plant_name = PLANTS[plant_code]["name"]
 
     if contains_sinhala(user_prompt):
+        language_instruction = """
+        Answer entirely in grammatically correct, natural Sinhala.
 
-        return f"""
-LANGUAGE INSTRUCTION:
+        Understand Sinhala-only and Sinhala-English mixed questions.
 
-The user has asked the question using Sinhala characters.
+        Retain important English technical terminology, equipment names,
+        abbreviations and engineering terms where appropriate.
 
-You MUST:
+        Never reproduce corrupted Sinhala OCR text from a PDF.
+        Understand the original English meaning and explain it in
+        correct Sinhala.
+        """
+    else:
+        language_instruction = """
+        Answer in clear, professional English.
+        """
 
-1. Understand the original Sinhala question.
-2. Understand Sinhala-English mixed technical terminology.
-3. Answer entirely in natural and clear Sinhala.
-4. Keep important engineering terms, equipment names,
-   SOP numbers and abbreviations in English where appropriate.
-5. Preserve all technical values, numerical limits and units.
-6. Explain procedures using numbered steps.
-7. Use only the SOP information retrieved for the selected plant.
-8. Never invent an operating procedure, technical setting,
-   safety limit or approval authority.
-9. If the selected SOP does not contain the answer,
-   clearly explain this in Sinhala.
-10. Do not mix BTO and WMB procedures.
+    common_instructions = """
+VIDULLANKA IDSS - PLANT OPERATIONS ASSISTANT
+
+SELECTED PLANT:
+{plant_code} - {plant_name}
+
+LANGUAGE INSTRUCTIONS:
+{language_instruction}
+
+IMPORTANT RULES:
+
+1. Use the retrieved SOP documents belonging to the selected plant.
+
+2. Understand Sinhala, English and Sinhala-English mixed questions.
+
+3. Answer in the language used by the user.
+
+4. If the user asks in Sinhala, use correct Sinhala grammar,
+   spelling and engineering terminology.
+
+5. Do not copy corrupted Sinhala characters or OCR errors
+   from the original PDF.
+
+6. Preserve technical values, numerical limits, units,
+   equipment names and SOP references exactly as documented.
+
+7. Do not invent procedures, approval authorities, technical
+   settings, maintenance frequencies or safety instructions.
+
+8. Do not combine BTO and WMB procedures.
+
+9. Do not assume that procedures and responsibilities are
+   identical across different plants.
+
+10. If the requested information is unavailable in the
+    selected plant's SOP, clearly state that it is not
+    specified in the available document.
+
+11. If the question concerns another plant, ask the user
+    to select that plant first.
+
+12. Use the following Sinhala terminology:
+
+    Responsibilities = වගකීම්
+    Prerequisites = පූර්ව අවශ්‍යතා
+    Scope = විෂය පථය
+    Purpose = අරමුණ
+    Procedure = ක්‍රියාපටිපාටිය
+    Operation = මෙහෙයුම් කටයුතු
+    Engineering Department = ඉංජිනේරු දෙපාර්තමේන්තුව
+    Operations Department = මෙහෙයුම් දෙපාර්තමේන්තුව
+    Head Office = ප්‍රධාන කාර්යාලය
+    Supervisor = අධීක්ෂක
+    Operator = ක්‍රියාකරු
+    Helper = සහායක සේවකයා
+    Area Engineer = ප්‍රාදේශීය ඉංජිනේරු
+    Operations Manager = මෙහෙයුම් කළමනාකරු
+    Maintenance = නඩත්තු කටයුතු
+    Emergency Shutdown = හදිසි නැවැත්වීම
+    Normal Shutdown = සාමාන්‍ය නැවැත්වීම
+    Lockout Tagout = බලශක්ති හුදකලා කිරීම සහ අගුලු දැමීමේ ක්‍රමවේදය
+
+13. When explaining a procedure, use these sections
+    where the source provides the information:
+
+    - අරමුණ (Purpose)
+    - විෂය පථය (Scope)
+    - පූර්ව අවශ්‍යතා (Prerequisites)
+    - වගකීම් (Responsibilities)
+    - ආරක්ෂක පියවර (Safety Precautions)
+    - ක්‍රියාපටිපාටිය (Procedure)
+    - වාර්තා සහ ලේඛන (Records)
+
+14. Explain only the steps supported by the retrieved SOP.
+    Do not create missing steps to complete an answer.
+
+15. Do not confuse general company responsibilities with
+    responsibilities assigned to a particular plant procedure.
+"""
+
+    if plant_code == "WMB":
+
+        plant_specific_instructions = """
+ADDITIONAL WMB SOP INSTRUCTIONS:
+
+The WMB SOP contains Function Responsibilities and
+Location Responsibilities documents.
+
+Section 3 - Prerequisites:
+
+Use the following accurate Sinhala explanation:
+
+"සියලුම වගකීම් එක් එක් බලාගාරයට අදාළ වන අතර,
+ප්‍රධාන කාර්යාලයේ මෙහෙයුම් දෙපාර්තමේන්තුව විසින්
+ලබා දී ඇති ආකෘති පමණක් භාවිත කළ යුතුය."
+
+Section 4 - Responsibilities:
+
+The original English text states:
+
+"Engineering department directly responsible for the
+operation procedures and all helpers, operators and
+supervisor will be responsible with the operation."
+
+Use the following accurate Sinhala explanation:
+
+"මෙහෙයුම් ක්‍රියාපටිපාටි සම්බන්ධයෙන් ඉංජිනේරු
+දෙපාර්තමේන්තුව සෘජුවම වගකිව යුතුය.
+මෙහෙයුම් කටයුතු සම්බන්ධයෙන් සියලුම සහායක
+සේවකයින්, ක්‍රියාකරුවන් සහ අධීක්ෂකවරුන්
+වගකිව යුතුය."
+
+The Function Responsibilities document identifies
+functions involving direct workers, supervisors,
+Area Engineers, Operations Manager and service departments.
+
+The Location Responsibilities document identifies
+work locations and the relevant persons responsible.
+
+Use the actual function and location tables when answering.
+Do not invent names or assign responsibility to a person
+when the document does not specify that information.
+
+The WMB document also refers to guidelines provided
+by the Operations Department - HOF.
+
+Apply these WMB instructions only when answering
+questions about WMB.
+"""
+
+    else:
+        plant_specific_instructions = ""
+
+    return f"""
+{common_instructions.format(
+    plant_code=plant_code,
+    plant_name=plant_name,
+    language_instruction=language_instruction
+)}
+
+{plant_specific_instructions}
 
 ORIGINAL USER QUESTION:
 
 {user_prompt}
 
-Provide the answer in Sinhala.
+Answer based on the retrieved SOP content.
 """
-
-    return user_prompt
 
 
 # ---------------------------------------------------------------------------
-# SOP PDF document configuration
+# SOP document configuration
 # ---------------------------------------------------------------------------
 
 DATA_DIR = Path(__file__).parent / "data"
 
-SOP_DOCUMENTS = {
+SOP_METADATA = {
+
     "BTO": {
-        "filename": "BTO_SOP.pdf",
-        "name": "Batathota Mini Hydro Power Plant",
-        "location": "Batathota",
+        "filenames": [
+            "BTO SOP Final.pdf",
+            "BTO_SOP.pdf",
+            "BTO-SOP.pdf",
+            "BTO.pdf",
+        ],
+        "owner": "Batathota MHPP (BTO)",
+        "pages": "34 pages",
+        "review_date": "25/11/2024",
+        "implementation_date": "Not specified in the document",
+        "references": [
+            "VLL\\BTO\\SOP-001 to SOP-017"
+        ],
+        "description": (
+            "Batathota Mini Hydro Power Plant Standard Operating "
+            "Procedures. Includes startup, stopping, emergency stopping, "
+            "short-term restart, transformer testing and cleaning, "
+            "HVCB, CT/PT, intake gate, forebay sand removal, sand gate, "
+            "MIV, cooling, governor, crane, trash machine, penstock "
+            "leakage, turbine leakage and flood-related procedures."
+        ),
     },
+
     "WMB": {
-        "filename": "WMB_SOP.pdf",
-        "name": "Wembiyagoda Mini Hydro Power Plant",
-        "location": "Kalawana, Rathnapura",
+        "filenames": [
+            "WMB_SOP.pdf",
+            "WMB SOP.pdf",
+            "WMB-SOP.pdf",
+            "WMB.pdf",
+        ],
+        "owner": "Wembiyagoda MHPP (WMB)",
+        "pages": "46 pages",
+        "review_date": (
+            "Function and Location Responsibilities: 01/01/2020. "
+            "Operational SOP review dates vary by document."
+        ),
+        "implementation_date": (
+            "Function and Location Responsibilities: 01/01/2019. "
+            "Operational SOP implementation dates vary by document."
+        ),
+        "references": [
+            "VLL\\WMB\\SOP-001 - Function Responsibilities",
+            "VLL\\WMB\\SOP-002 - Location Responsibilities",
+            "VLL\\WMB\\SOP-003 onwards - Operational Procedures",
+        ],
+        "description": (
+            "Wembiyagoda Mini Hydro Power Plant SOP. Includes Function "
+            "Responsibilities, Location Responsibilities and operating "
+            "procedures covering Lockout Tagout, startup, shutdown, "
+            "emergency shutdown, short-term restart, transformer, HVCB, "
+            "CT/PT, intake gate, forebay sand removal, sand gate, MIV, "
+            "cooling, governor, crane, trash machine, penstock leakage, "
+            "turbine leakage, flooding, electrical fire, channel "
+            "inspection, shutdown authority and inventory."
+        ),
     },
 }
 
 
+# Include all registered plants without assuming that they
+# have the same SOP content.
+
+SOP_DOCUMENTS = {}
+
+for code in list_plant_codes():
+
+    metadata = SOP_METADATA.get(code, {})
+
+    SOP_DOCUMENTS[code] = {
+        "name": PLANTS[code]["name"],
+        "location": PLANTS[code].get("location", ""),
+        "filenames": metadata.get(
+            "filenames",
+            [
+                f"{code}_SOP.pdf",
+                f"{code} SOP Final.pdf",
+                f"{code}-SOP.pdf",
+                f"{code}.pdf",
+            ]
+        ),
+        "owner": metadata.get(
+            "owner",
+            "Refer to the original SOP"
+        ),
+        "pages": metadata.get(
+            "pages",
+            "Refer to the original SOP"
+        ),
+        "review_date": metadata.get(
+            "review_date",
+            "Refer to individual SOP"
+        ),
+        "implementation_date": metadata.get(
+            "implementation_date",
+            "Refer to individual SOP"
+        ),
+        "references": metadata.get("references", []),
+        "description": metadata.get(
+            "description",
+            "Refer to the original plant SOP document."
+        ),
+    }
+
+
 # ---------------------------------------------------------------------------
-# Find the actual SOP PDF
+# Find SOP PDF
 # ---------------------------------------------------------------------------
 
 def find_sop_pdf(plant_code: str):
 
-    document = SOP_DOCUMENTS[plant_code]
+    document = SOP_DOCUMENTS.get(plant_code)
 
-    expected = document["filename"]
+    if not document:
+        return None
 
-    possible_paths = [
-        DATA_DIR / expected,
-        DATA_DIR / f"{plant_code}-SOP.pdf",
-        DATA_DIR / f"{plant_code}.pdf",
-    ]
+    for filename in document["filenames"]:
 
-    for path in possible_paths:
+        path = DATA_DIR / filename
+
         if path.is_file():
             return path
 
-    # Case-insensitive filename search
     if DATA_DIR.exists():
 
         for path in DATA_DIR.iterdir():
 
-            if (
-                path.is_file()
-                and path.suffix.lower() == ".pdf"
-                and path.stem.upper().replace("-", "_")
-                in {
-                    f"{plant_code}_SOP",
-                    plant_code,
-                }
-            ):
+            if not path.is_file():
+                continue
+
+            if path.suffix.lower() != ".pdf":
+                continue
+
+            normalized = re.sub(
+                r"[^a-z0-9]",
+                "",
+                path.stem.lower()
+            )
+
+            code = plant_code.lower()
+
+            if normalized in {
+                code,
+                f"{code}sop",
+                f"{code}sopfinal",
+            }:
                 return path
 
     return None
 
 
 # ---------------------------------------------------------------------------
-# Extract actual SOP topics from PDF documents
+# Extract actual SOP headings from PDF
 # ---------------------------------------------------------------------------
 
 @st.cache_data(show_spinner=False)
 def extract_sop_topics(pdf_path: str, modified_time: float):
 
     """
-    Extract numbered SOP headings from the actual PDF.
+    Extract numbered procedure headings from the original PDF.
 
-    Reads all pages to identify the procedures contained in each
-    plant's SOP instead of using manually invented topic lists.
+    The function reads the PDF itself, rather than relying on
+    manually invented procedure categories.
     """
+
+    if PdfReader is None:
+        return [], "pypdf is not installed. Run: pip install pypdf"
 
     topics = []
     seen = set()
 
     heading_pattern = re.compile(
-        r"^\s*(\d{1,2})\s*[\.\)]\s*(.+)$",
-        re.IGNORECASE
+        r"^\s*(\d{1,2})\s*[\.\)]\s*(.+)$"
     )
 
-    relevant_words = (
-        "standard",
-        "procedure",
-        "responsibilities",
-        "inventory",
-        "authority",
+    subheading_pattern = re.compile(
+        r"^\s*\d{1,2}\.\d+"
     )
 
     try:
 
-        with pdfplumber.open(pdf_path) as pdf:
+        reader = PdfReader(pdf_path)
 
-            for page in pdf.pages:
+        for page in reader.pages:
 
-                page_text = page.extract_text() or ""
+            page_text = page.extract_text() or ""
 
-                for raw_line in page_text.splitlines():
+            lines = page_text.splitlines()
 
-                    line = raw_line.strip()
+            for i, raw_line in enumerate(lines):
 
-                    if not line:
-                        continue
+                line = raw_line.strip()
 
-                    match = heading_pattern.match(line)
+                match = heading_pattern.match(line)
 
-                    if not match:
-                        continue
+                if not match:
+                    continue
 
-                    title = match.group(2).strip()
+                title = match.group(2).strip()
 
-                    # Remove table-of-contents dotted leaders and page numbers.
-                    title = re.sub(r"\.{2,}.*$", "", title).strip()
+                # Keep only actual procedure/document headings.
+                if not re.search(
+                    r"\b(standard|procedure)\b",
+                    title,
+                    re.IGNORECASE
+                ):
+                    continue
 
-                    title = re.sub(r"\s+", " ", title)
+                # Remove dotted leaders and page numbers.
+                title = re.sub(
+                    r"\.{2,}.*$",
+                    "",
+                    title
+                ).strip()
 
-                    if len(title) < 8:
-                        continue
+                # Join a wrapped heading, for example:
+                # "Startup, Stop and Emergency Stop"
+                # "Procedure"
+                if i + 1 < len(lines):
 
-                    if not any(
-                        word in title.lower()
-                        for word in relevant_words
+                    next_line = lines[i + 1].strip()
+
+                    if (
+                        next_line
+                        and not heading_pattern.match(next_line)
+                        and not subheading_pattern.match(next_line)
+                        and len(title) < 100
+                        and len(next_line) < 55
+                        and not re.match(
+                            r"^(purpose|scope|prerequisites|"
+                            r"responsibilities|procedure|"
+                            r"sop owner|implementation date|"
+                            r"last reviewed|page)",
+                            next_line,
+                            re.IGNORECASE
+                        )
                     ):
-                        continue
 
-                    # Remove duplicate headings from repeated PDF pages.
-                    clean_title = title.rstrip(" .:-")
+                        if re.match(
+                            r"^(procedure|operation|work|system|"
+                            r"cleaning|within\s+\d+)",
+                            next_line,
+                            re.IGNORECASE
+                        ):
+                            title += " " + next_line
 
-                    key = re.sub(
-                        r"[^a-z0-9]+",
-                        "",
-                        clean_title.lower()
-                    )
+                title = re.sub(
+                    r"\s+",
+                    " ",
+                    title
+                ).strip(" .:-")
 
-                    if key in seen:
-                        continue
+                key = re.sub(
+                    r"[^\w]+",
+                    "",
+                    title.casefold(),
+                    flags=re.UNICODE
+                )
+
+                if key and key not in seen:
 
                     seen.add(key)
+                    topics.append(title)
 
-                    topics.append(clean_title)
+        # WMB's two responsibility documents have
+        # unnumbered headings in their respective pages.
+
+        if Path(pdf_path).name.lower() in {
+            "wmb_sop.pdf",
+            "wmb sop.pdf",
+            "wmb-sop.pdf",
+            "wmb.pdf",
+        }:
+
+            responsibility_topics = [
+                "Function Responsibilities",
+                "Location Responsibilities",
+            ]
+
+            for topic in responsibility_topics:
+
+                key = re.sub(
+                    r"[^\w]+",
+                    "",
+                    topic.casefold()
+                )
+
+                if key not in seen:
+                    seen.add(key)
+                    topics.insert(
+                        0 if topic == "Location Responsibilities" else 0,
+                        topic
+                    )
 
         return topics, None
 
@@ -304,22 +605,23 @@ def extract_sop_topics(pdf_path: str, modified_time: float):
 
 
 # ---------------------------------------------------------------------------
-# Generate a question for each extracted SOP heading
+# Generate Sinhala example questions
 # ---------------------------------------------------------------------------
 
 def generate_example_question(topic: str, plant_code: str):
 
     return (
-        f"According to the {plant_code} SOP, "
-        f"please explain the procedure for {topic}. "
-        f"Include the purpose, prerequisites, responsibilities, "
-        f"safety precautions and operating steps where available "
-        f"in the selected SOP."
+        f"{plant_code} බලාගාරයට අදාළ SOP ලේඛනය අනුව "
+        f"'{topic}' සම්බන්ධ ක්‍රියාපටිපාටිය සිංහලෙන් "
+        f"පැහැදිලි කරන්න. එහි අරමුණ, විෂය පථය, "
+        f"පූර්ව අවශ්‍යතා, වගකීම්, ආරක්ෂක පියවර සහ "
+        f"පියවරෙන් පියවර අනුගමනය කළ යුතු ක්‍රමවේදය "
+        f"ලේඛනයේ සඳහන් කරුණු අනුව පැහැදිලි කරන්න."
     )
 
 
 # ---------------------------------------------------------------------------
-# Render both plant SOP documents in the sidebar
+# Display actual SOP documents in sidebar
 # ---------------------------------------------------------------------------
 
 def render_sop_documents():
@@ -331,15 +633,15 @@ def render_sop_documents():
     st.markdown(
         """
         <div class="sop-intro">
-        Explore the actual contents of the BTO and WMB SOP documents.
-        Select a procedure to see what you can ask the Operations Assistant.
+        Explore the actual contents of each plant's SOP documents.
+        Select a procedure to ask the Operations Assistant.
         </div>
         """,
-        unsafe_allow_html=True,
+        unsafe_allow_html=True
     )
 
     st.caption(
-        "Choose a topic to automatically ask the agent."
+        "Choose a plant and explore the procedures included in its SOP."
     )
 
     for plant_code, document in SOP_DOCUMENTS.items():
@@ -358,8 +660,8 @@ def render_sop_documents():
             if pdf_path is None:
 
                 st.warning(
-                    f"{document['filename']} was not found "
-                    f"in the data folder."
+                    f"SOP PDF not found for {plant_code}. "
+                    "Please check the data folder."
                 )
 
                 continue
@@ -367,6 +669,38 @@ def render_sop_documents():
             st.caption(
                 f"Source document: {pdf_path.name}"
             )
+
+            # ---------------------------------------------------
+            # Document information
+            # ---------------------------------------------------
+
+            st.markdown("**Document Information**")
+
+            st.markdown(
+                f"""
+                - **SOP Owner:** {document['owner']}
+                - **Document Length:** {document['pages']}
+                - **Implementation Date:** {document['implementation_date']}
+                - **Last Reviewed / Updated:** {document['review_date']}
+                """
+            )
+
+            if document["references"]:
+
+                st.markdown("**SOP References**")
+
+                for reference in document["references"]:
+                    st.markdown(f"- `{reference}`")
+
+            st.markdown("**Document Coverage**")
+
+            st.write(
+                document["description"]
+            )
+
+            # ---------------------------------------------------
+            # Extract actual topics
+            # ---------------------------------------------------
 
             with st.spinner(
                 f"Reading {plant_code} SOP contents..."
@@ -388,8 +722,9 @@ def render_sop_documents():
             if not topics:
 
                 st.warning(
-                    "No numbered SOP headings could be extracted "
-                    "from this PDF. Please check its text extraction."
+                    "No numbered procedure headings could be "
+                    "extracted from this PDF. Please check the "
+                    "document text extraction."
                 )
 
                 continue
@@ -398,7 +733,9 @@ def render_sop_documents():
                 f"{len(topics)} SOP topics identified"
             )
 
-            st.markdown("**Procedures included in this document:**")
+            st.markdown(
+                "**Procedures included in this document:**"
+            )
 
             for index, topic in enumerate(topics, start=1):
 
@@ -413,13 +750,15 @@ def render_sop_documents():
                     use_container_width=True
                 ):
 
-                    # Switch to the correct plant before asking.
+                    # Automatically switch to the relevant plant.
+
                     if (
                         st.session_state.selected_plant
                         != plant_code
                     ):
 
                         st.session_state.selected_plant = plant_code
+
                         st.session_state.thread_id = str(uuid.uuid4())
 
                     st.session_state.pending_question = question
@@ -429,7 +768,7 @@ def render_sop_documents():
             st.markdown("---")
 
             st.caption(
-                "You can also type your own question in Sinhala, "
+                "You can ask your own questions in Sinhala, "
                 "English or Sinhala-English."
             )
 
@@ -504,7 +843,7 @@ with st.sidebar:
     )
 
     # -------------------------------------------------------
-    # Actual contents of both SOP PDF documents
+    # Actual BTO, WMB and other registered plant SOP contents
     # -------------------------------------------------------
 
     render_sop_documents()
@@ -675,7 +1014,8 @@ prompt = st.chat_input(
     f"Ask about {plant['code']} procedures, safety, or equipment..."
 )
 
-# Use a question selected from the SOP sidebar.
+# Process a question selected from the sidebar.
+
 if pending_question is not None:
 
     prompt = pending_question
@@ -722,8 +1062,11 @@ if prompt:
                     st.session_state.selected_plant
                 )
 
+                # Sinhala and English language handling.
+
                 agent_prompt = prepare_agent_prompt(
-                    prompt
+                    prompt,
+                    st.session_state.selected_plant
                 )
 
                 result = run_agent(
