@@ -22,12 +22,17 @@ st.set_page_config(page_title="Vidullanka IDSS — Plant Operations Assistant", 
 st.markdown(
     """
     <style>
-    /* Keep the main heading close to the top of the page. */
-    [data-testid="stAppViewBlockContainer"] {
-        padding-top: 0.8rem !important;
+    /* Remove Streamlit's default top spacing so the heading starts at the top. */
+    [data-testid="stMainBlockContainer"],
+    [data-testid="stAppViewBlockContainer"],
+    [data-testid="stMain"] > div,
+    .main .block-container {
+        padding-top: 0 !important;
     }
 
-    [data-testid="stAppViewBlockContainer"] h1 {
+    [data-testid="stMainBlockContainer"] h1,
+    [data-testid="stAppViewBlockContainer"] h1,
+    .main .block-container h1 {
         margin-top: 0 !important;
         padding-top: 0 !important;
     }
