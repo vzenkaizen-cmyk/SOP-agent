@@ -17,6 +17,72 @@ from agent import build_agent, run_agent
 st.set_page_config(page_title="Vidullanka IDSS — Plant Operations Assistant", page_icon="💧", layout="wide")
 
 # ---------------------------------------------------------------------------
+# Layout and automatic light/dark appearance
+# ---------------------------------------------------------------------------
+st.markdown(
+    """
+    <style>
+    /* Keep the main heading close to the top of the page. */
+    [data-testid="stAppViewBlockContainer"] {
+        padding-top: 0.8rem !important;
+    }
+
+    [data-testid="stAppViewBlockContainer"] h1 {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+
+    /* Follow the computer/browser appearance preference. */
+    @media (prefers-color-scheme: dark) {
+        [data-testid="stAppViewContainer"],
+        [data-testid="stMain"],
+        [data-testid="stSidebar"] {
+            background-color: #0e1117 !important;
+            color: #fafafa !important;
+        }
+
+        [data-testid="stHeader"] {
+            background-color: rgba(14, 17, 23, 0.95) !important;
+        }
+
+        [data-testid="stAppViewContainer"] *,
+        [data-testid="stSidebar"] * {
+            color: #fafafa;
+        }
+
+        [data-testid="stChatMessage"],
+        [data-testid="stChatInput"] {
+            background-color: #1b2029 !important;
+            border-color: #424956 !important;
+        }
+
+        [data-testid="stChatInput"] textarea,
+        [data-testid="stTextInput"] input,
+        [data-testid="stSelectbox"] > div > div {
+            background-color: #1b2029 !important;
+            color: #fafafa !important;
+        }
+
+        [data-testid="stChatInput"] textarea::placeholder,
+        [data-testid="stTextInput"] input::placeholder {
+            color: #b7c0cc !important;
+        }
+
+        [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] code {
+            background-color: #252c37 !important;
+        }
+
+        [data-testid="stAppViewContainer"] hr,
+        [data-testid="stSidebar"] hr {
+            border-color: #424956 !important;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# ---------------------------------------------------------------------------
 # Session state
 # ---------------------------------------------------------------------------
 if "thread_id" not in st.session_state:
