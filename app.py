@@ -36,6 +36,51 @@ st.markdown(
                      "Segoe UI", sans-serif !important;
     }
 
+    /* Follow the active Streamlit theme, including dark-theme laptops. */
+    :root {
+        color-scheme: light dark;
+    }
+
+    [data-testid="stAppViewContainer"],
+    [data-testid="stMain"],
+    [data-testid="stSidebar"],
+    [data-testid="stHeader"] {
+        background-color: var(--background-color) !important;
+        color: var(--text-color) !important;
+    }
+
+    [data-testid="stAppViewContainer"] *,
+    [data-testid="stSidebar"] * {
+        color: inherit;
+    }
+
+    [data-testid="stChatMessage"],
+    [data-testid="stTextArea"] textarea,
+    [data-testid="stTextInput"] input,
+    [data-testid="stSelectbox"] [data-baseweb="select"] > div,
+    [data-testid="stExpander"] {
+        background-color: var(--secondary-background-color) !important;
+        color: var(--text-color) !important;
+        border-color: rgba(128, 128, 128, 0.45) !important;
+    }
+
+    [data-testid="stTextArea"] textarea,
+    [data-testid="stTextInput"] input {
+        caret-color: var(--text-color) !important;
+    }
+
+    [data-testid="stButton"] button,
+    [data-testid="stDownloadButton"] button {
+        color: var(--text-color) !important;
+        border-color: rgba(128, 128, 128, 0.5) !important;
+    }
+
+    [data-testid="stButton"] button:hover,
+    [data-testid="stDownloadButton"] button:hover {
+        border-color: var(--primary-color) !important;
+        color: var(--primary-color) !important;
+    }
+
     [data-testid="stMainBlockContainer"],
     [data-testid="stAppViewBlockContainer"],
     .main .block-container {
@@ -667,7 +712,7 @@ if prompt:
             # Sinhala-only question -> Sinhala-only answer
             # Mixed Sinhala + English question -> bilingual answer
             sinhala_chars = any(
-                "\\u0D80" <= char <= "\\u0DFF" for char in prompt
+                "\u0D80" <= char <= "\u0DFF" for char in prompt
             )
             english_chars = any(
                 ("A" <= char <= "Z") or ("a" <= char <= "z")
@@ -698,7 +743,7 @@ if prompt:
 
             agent_question = (
                 prompt
-                + "\\n\\n"
+                + "\n\n"
                 + language_instruction
                 + (
                     " The selected scope includes both BTO and WMB. "
