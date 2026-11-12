@@ -29,6 +29,13 @@ st.set_page_config(
 st.markdown(
     """
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;500;600;700&display=swap');
+
+    html, body, [class*="css"], button, input, textarea {
+        font-family: "Noto Sans Sinhala", "Iskoola Pota", "Nirmala UI",
+                     "Segoe UI", sans-serif !important;
+    }
+
     [data-testid="stMainBlockContainer"],
     [data-testid="stAppViewBlockContainer"],
     .main .block-container {
@@ -63,49 +70,30 @@ st.markdown(
         background: rgba(128, 128, 128, 0.045);
     }
 
-    @media (prefers-color-scheme: dark) {
-        [data-testid="stAppViewContainer"],
-        [data-testid="stMain"],
-        [data-testid="stSidebar"] {
-            background-color: #0e1117 !important;
-            color: #fafafa !important;
-        }
+    /* Theme-aware controls: follows Streamlit light or dark theme. */
+    [data-testid="stChatMessage"],
+    [data-testid="stTextArea"] textarea,
+    [data-testid="stTextInput"] input {
+        background: var(--secondary-background-color) !important;
+        color: var(--text-color) !important;
+        border-color: rgba(128, 128, 128, 0.45) !important;
+    }
 
-        [data-testid="stHeader"] {
-            background-color: rgba(14, 17, 23, 0.95) !important;
-        }
+    [data-testid="stTextArea"] textarea::placeholder,
+    [data-testid="stTextInput"] input::placeholder {
+        color: var(--text-color) !important;
+        opacity: 0.65;
+    }
 
-        [data-testid="stAppViewContainer"] *,
-        [data-testid="stSidebar"] * {
-            color: #fafafa;
-        }
+    [data-testid="stButton"] button {
+        color: var(--text-color);
+        border-color: rgba(128, 128, 128, 0.45);
+    }
 
-        [data-testid="stChatMessage"],
-        [data-testid="stChatInput"] {
-            background-color: #1b2029 !important;
-            border-color: #424956 !important;
-        }
-
-        [data-testid="stChatInput"] textarea,
-        [data-testid="stTextInput"] input,
-        [data-testid="stSelectbox"] > div > div {
-            background-color: #1b2029 !important;
-            color: #fafafa !important;
-        }
-
-        [data-testid="stChatInput"] textarea::placeholder,
-        [data-testid="stTextInput"] input::placeholder {
-            color: #b7c0cc !important;
-        }
-
-        [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] code {
-            background-color: #252c37 !important;
-        }
-
-        [data-testid="stAppViewContainer"] hr,
-        [data-testid="stSidebar"] hr {
-            border-color: #424956 !important;
-        }
+    .sinhala-keyboard-note {
+        color: var(--text-color);
+        opacity: 0.75;
+        font-size: 0.85rem;
     }
     </style>
     """,
@@ -220,19 +208,50 @@ def get_agent(plant_code):
 # ---------------------------------------------------------------------------
 
 def make_example_question(plant_code, sop_number, topic):
+    """
+    Build a complete English question for every SOP topic button.
+    Clicking a topic submits an English question and requests an English-only answer.
+    """
     if sop_number in ("SOP-001", "SOP-002") and plant_code == "WMB":
         return (
-            f"WMB බලාගාරයේ {topic} පිළිබඳ වගකීම් සහ අදාළ "
-            "පුද්ගලයින් SOP ලේඛනය අනුව සිංහලෙන් පැහැදිලි කරන්න. "
-            "ලේඛනයේ සඳහන් කර ඇති කරුණු පමණක් භාවිතා කරන්න."
+            f"Explain the {topic} responsibilities at the WMB power plant "
+            "according to the relevant SOP. Include the roles and "
+            "responsibilities stated in the document. Use only information "
+            "provided in the SOP and answer fully in English."
         )
 
     return (
-        f"{plant_code} බලාගාරයේ {topic} සම්බන්ධ SOP ක්‍රියාපටිපාටිය "
-        "සිංහලෙන් පැහැදිලි කරන්න. අරමුණ, විෂය පථය, පූර්ව අවශ්‍යතා, "
-        "වගකීම්, ආරක්ෂක පියවර සහ අනුගමනය කළ යුතු පියවර "
-        "SOP ලේඛනයේ සඳහන් කර ඇති පරිදි ලබා දෙන්න."
+        f"Explain the complete {topic} procedure for the {plant_code} "
+        "power plant according to its SOP. Include the purpose, scope, "
+        "prerequisites, responsibilities, safety precautions, and all "
+        "operational steps stated in the document. Use only information "
+        "provided in the SOP and answer fully in English."
     )
+
+
+def append_question_text(value):
+    """Append a Sinhala character or other key to the question input."""
+    st.session_state.question_input = (
+        st.session_state.get("question_input", "") + value
+    )
+
+
+def delete_question_character():
+    """Delete the last Unicode character from the question input."""
+    current = st.session_state.get("question_input", "")
+    st.session_state.question_input = current[:-1]
+
+
+def clear_question_input():
+    st.session_state.question_input = ""
+
+
+def submit_typed_question():
+    """Queue the typed question before the next Streamlit rerun."""
+    question = st.session_state.get("question_input", "").strip()
+    if question:
+        st.session_state.pending_question = question
+        st.session_state.question_input = ""
 
 
 def select_sop_question(plant_code, question):
@@ -451,19 +470,20 @@ if not history and st.session_state.pending_question is None:
 
     examples = [
         (
-            "හදිසි අවස්ථාවකදී යන්ත්‍රය නවත්වන්නේ කෙසේද?",
-            "හදිසි අවස්ථාවකදී යන්ත්‍රය නවත්වන්නේ කෙසේද? "
-            "අදාළ SOP පියවර සිංහලෙන් පැහැදිලි කරන්න.",
+            "How do I stop the machine during an emergency?",
+            "How should the machine be stopped during an emergency? "
+            "Explain the applicable SOP steps fully in English.",
         ),
         (
-            "MIV valve එක ක්‍රියාත්මක කරන්නේ කෙසේද?",
-            "MIV valve එක විවෘත කිරීමේ සහ වසා දැමීමේ "
-            "ක්‍රියාපටිපාටිය SOP අනුව පැහැදිලි කරන්න.",
+            "How do I operate the MIV valve?",
+            "Explain the MIV valve opening and closing procedure "
+            "according to the selected plant SOP, in English.",
         ),
         (
             "What are the prerequisites for crane operation?",
             "What are the prerequisites and safety precautions "
-            "for crane operation according to the selected plant SOP?",
+            "for crane operation according to the selected plant SOP? "
+            "Answer fully in English.",
         ),
     ]
 
@@ -505,10 +525,80 @@ for turn in history:
 # ---------------------------------------------------------------------------
 
 pending_question = st.session_state.pending_question
-prompt = st.chat_input(
-    f"Ask about {plant_code} procedures, safety, or equipment..."
+
+st.text_area(
+    f"Ask about {plant_code} procedures, safety, or equipment...",
+    key="question_input",
+    height=100,
+    placeholder=(
+        "Type your question in English or Sinhala. "
+        "Use the Sinhala keyboard below if your device does not have "
+        "a Sinhala keyboard installed."
+    ),
 )
 
+with st.expander("සිංහල යතුරුපුවරුව / Sinhala Keyboard", expanded=False):
+    st.markdown(
+        '<div class="sinhala-keyboard-note">'
+        'අවශ්‍ය අකුරු තෝරන්න. අකුරු ප්‍රශ්න කොටුවට එක් වේ. '
+        'Select Sinhala characters to insert them into the question box.'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    sinhala_keyboard_rows = [
+        list("අආඇඈඉඊඋඌඑඒඓඔඕඖ"),
+        list("කඛගඝඞඟචඡජඣඤ"),
+        list("ටඨඩඪණඬතථදධනඳ"),
+        list("පඵබභමඹයරලව"),
+        list("ශෂසහළෆ"),
+        list("ාැෑිීුූෘෙේෛොෝෞංඃ්"),
+    ]
+
+    for row_index, keyboard_row in enumerate(sinhala_keyboard_rows):
+        key_columns = st.columns(min(10, len(keyboard_row)))
+        for key_index, character in enumerate(keyboard_row):
+            with key_columns[key_index % len(key_columns)]:
+                st.button(
+                    character,
+                    key=f"sinhala_key_{row_index}_{key_index}",
+                    use_container_width=True,
+                    on_click=append_question_text,
+                    args=(character,),
+                )
+
+    utility_columns = st.columns(3)
+    with utility_columns[0]:
+        st.button(
+            "Space",
+            key="sinhala_key_space",
+            use_container_width=True,
+            on_click=append_question_text,
+            args=(" ",),
+        )
+    with utility_columns[1]:
+        st.button(
+            "⌫ Backspace",
+            key="sinhala_key_backspace",
+            use_container_width=True,
+            on_click=delete_question_character,
+        )
+    with utility_columns[2]:
+        st.button(
+            "Clear",
+            key="sinhala_key_clear",
+            use_container_width=True,
+            on_click=clear_question_input,
+        )
+
+st.button(
+    "Send question",
+    key="send_typed_question",
+    type="primary",
+    on_click=submit_typed_question,
+)
+
+prompt = None
 if pending_question is not None:
     prompt = pending_question
     st.session_state.pending_question = None
@@ -532,10 +622,9 @@ if prompt:
             st.markdown(answer_text)
 
         else:
-            # Detect the language used by the user and answer accordingly:
-            # English question -> English answer
-            # Sinhala question -> Sinhala answer
-            # Sinhala + English question -> bilingual answer
+            # English-only question -> English-only answer
+            # Sinhala-only question -> Sinhala-only answer
+            # Mixed Sinhala + English question -> bilingual answer
             sinhala_chars = any(
                 "\\u0D80" <= char <= "\\u0DFF" for char in prompt
             )
@@ -554,12 +643,16 @@ if prompt:
                 )
             elif sinhala_chars:
                 language_instruction = (
-                    "The user asked in Sinhala. Answer only in clear, "
-                    "grammatically correct Sinhala."
+                    "The user asked in Sinhala only. Answer only in clear, "
+                    "grammatically correct Sinhala. Do not add an English "
+                    "translation or English summary. Keep technical terms "
+                    "in English only when necessary for accuracy."
                 )
             else:
                 language_instruction = (
-                    "The user asked in English. Answer only in clear English."
+                    "The user asked in English only. Answer only in clear, "
+                    "complete English. Do not add Sinhala translations or "
+                    "Sinhala summaries."
                 )
 
             agent_question = (
