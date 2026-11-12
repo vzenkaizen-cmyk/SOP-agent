@@ -95,27 +95,6 @@ st.markdown(
         opacity: 0.75;
         font-size: 0.85rem;
     }
-
-    /* Hide Streamlit's platform toolbar, GitHub link, menu and footer
-       to keep the application interface clean and professional. */
-    header[data-testid="stHeader"],
-    [data-testid="stToolbar"],
-    [data-testid="stDecoration"],
-    [data-testid="stStatusWidget"],
-    #MainMenu,
-    footer {
-        display: none !important;
-        visibility: hidden !important;
-        height: 0 !important;
-    }
-
-    /* Keep the Sinhala virtual keyboard on desktop/tablet,
-       but remove it from phone layouts. */
-    @media screen and (max-width: 768px) {
-        .st-key-sinhala_keyboard_section {
-            display: none !important;
-        }
-    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -558,60 +537,59 @@ st.text_area(
     ),
 )
 
-with st.container(key="sinhala_keyboard_section"):
-    with st.expander("සිංහල යතුරුපුවරුව / Sinhala Keyboard", expanded=False):
-        st.markdown(
-            '<div class="sinhala-keyboard-note">'
-            'අවශ්‍ය අකුරු තෝරන්න. අකුරු ප්‍රශ්න කොටුවට එක් වේ. '
-            'Select Sinhala characters to insert them into the question box.'
-            '</div>',
-            unsafe_allow_html=True,
+with st.expander("සිංහල යතුරුපුවරුව / Sinhala Keyboard", expanded=False):
+    st.markdown(
+        '<div class="sinhala-keyboard-note">'
+        'අවශ්‍ය අකුරු තෝරන්න. අකුරු ප්‍රශ්න කොටුවට එක් වේ. '
+        'Select Sinhala characters to insert them into the question box.'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    sinhala_keyboard_rows = [
+        list("අආඇඈඉඊඋඌඑඒඓඔඕඖ"),
+        list("කඛගඝඞඟචඡජඣඤ"),
+        list("ටඨඩඪණඬතථදධනඳ"),
+        list("පඵබභමඹයරලව"),
+        list("ශෂසහළෆ"),
+        list("ාැෑිීුූෘෙේෛොෝෞංඃ්"),
+    ]
+
+    for row_index, keyboard_row in enumerate(sinhala_keyboard_rows):
+        key_columns = st.columns(min(10, len(keyboard_row)))
+        for key_index, character in enumerate(keyboard_row):
+            with key_columns[key_index % len(key_columns)]:
+                st.button(
+                    character,
+                    key=f"sinhala_key_{row_index}_{key_index}",
+                    use_container_width=True,
+                    on_click=append_question_text,
+                    args=(character,),
+                )
+
+    utility_columns = st.columns(3)
+    with utility_columns[0]:
+        st.button(
+            "Space",
+            key="sinhala_key_space",
+            use_container_width=True,
+            on_click=append_question_text,
+            args=(" ",),
         )
-
-        sinhala_keyboard_rows = [
-            list("අආඇඈඉඊඋඌඑඒඓඔඕඖ"),
-            list("කඛගඝඞඟචඡජඣඤ"),
-            list("ටඨඩඪණඬතථදධනඳ"),
-            list("පඵබභමඹයරලව"),
-            list("ශෂසහළෆ"),
-            list("ාැෑිීුූෘෙේෛොෝෞංඃ්"),
-        ]
-
-        for row_index, keyboard_row in enumerate(sinhala_keyboard_rows):
-            key_columns = st.columns(min(10, len(keyboard_row)))
-            for key_index, character in enumerate(keyboard_row):
-                with key_columns[key_index % len(key_columns)]:
-                    st.button(
-                        character,
-                        key=f"sinhala_key_{row_index}_{key_index}",
-                        use_container_width=True,
-                        on_click=append_question_text,
-                        args=(character,),
-                    )
-
-        utility_columns = st.columns(3)
-        with utility_columns[0]:
-            st.button(
-                "Space",
-                key="sinhala_key_space",
-                use_container_width=True,
-                on_click=append_question_text,
-                args=(" ",),
-            )
-        with utility_columns[1]:
-            st.button(
-                "⌫ Backspace",
-                key="sinhala_key_backspace",
-                use_container_width=True,
-                on_click=delete_question_character,
-            )
-        with utility_columns[2]:
-            st.button(
-                "Clear",
-                key="sinhala_key_clear",
-                use_container_width=True,
-                on_click=clear_question_input,
-            )
+    with utility_columns[1]:
+        st.button(
+            "⌫ Backspace",
+            key="sinhala_key_backspace",
+            use_container_width=True,
+            on_click=delete_question_character,
+        )
+    with utility_columns[2]:
+        st.button(
+            "Clear",
+            key="sinhala_key_clear",
+            use_container_width=True,
+            on_click=clear_question_input,
+        )
 
 st.button(
     "Send question",
