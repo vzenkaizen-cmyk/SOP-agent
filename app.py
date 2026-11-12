@@ -183,6 +183,8 @@ SOP_METADATA = {
     },
 }
 
+ALL_PLANT_MODE = "BTO_WMB"
+
 
 # ---------------------------------------------------------------------------
 # Session state
@@ -286,11 +288,15 @@ with st.sidebar:
     st.caption("Plant Operations Assistant")
 
     plant_codes = list_plant_codes()
+    selection_options = list(plant_codes)
+    if "BTO" in plant_codes and "WMB" in plant_codes:
+        selection_options.append(ALL_PLANT_MODE)
 
     plant_labels = {
         code: f"{code} — {PLANTS[code]['name']}"
         for code in plant_codes
     }
+    plant_labels[ALL_PLANT_MODE] = "BTO + WMB — Overall / Both Plants"
 
     # Use a plant-specific key so a topic click can switch plants safely.
     # This avoids changing a widget's state after it has been instantiated.
@@ -298,9 +304,10 @@ with st.sidebar:
 
     selected = st.selectbox(
         "Select plant",
-        options=plant_codes,
+        options=selection_options,
         format_func=lambda code: plant_labels[code],
-        index=plant_codes.index(st.session_state.selected_plant),
+        index=selection_options.index(st.session_state.selected_plant)
+        if st.session_state.selected_plant in selection_options else 0,
         key=selector_key,
     )
 
@@ -309,12 +316,18 @@ with st.sidebar:
         st.session_state.thread_id = str(uuid.uuid4())
         st.rerun()
 
-    current_plant = PLANTS[st.session_state.selected_plant]
-
-    st.markdown(
-        f"**{current_plant['name']}**  \n"
-        f"{current_plant.get('location', '')}"
-    )
+    if st.session_state.selected_plant == ALL_PLANT_MODE:
+        st.markdown(
+            "**BTO — Batathota MHPP**  \\n"
+            "**WMB — Wembiyagoda MHPP**  \\n"
+            "Combined hydro plant knowledge"
+        )
+    else:
+        current_plant = PLANTS[st.session_state.selected_plant]
+        st.markdown(
+            f"**{current_plant['name']}**  \\n"
+            f"{current_plant.get('location', '')}"
+        )
 
     # -------------------------------------------------------
     # SOP topics: compact, grouped, and no runtime PDF parser
@@ -328,6 +341,10 @@ with st.sidebar:
         'Choose a topic below to send an example question to the agent. '
         'Questions can be asked in Sinhala, English or both.</div>',
         unsafe_allow_html=True,
+    )
+    st.caption(
+        "Select **BTO + WMB — Overall / Both Plants** above to ask "
+        "questions covering both hydro plants together."
     )
 
     for code in plant_codes:
@@ -393,11 +410,17 @@ with st.sidebar:
         for code, count in stats["per_plant"].items():
             st.write(f"- {code}: {count} chunks")
 
-        index_ready = (
-            stats["per_plant"].get(
-                st.session_state.selected_plant, 0
-            ) > 0
-        )
+        if st.session_state.selected_plant == ALL_PLANT_MODE:
+            index_ready = all(
+                stats["per_plant"].get(code, 0) > 0
+                for code in ("BTO", "WMB")
+            )
+        else:
+            index_ready = (
+                stats["per_plant"].get(
+                    st.session_state.selected_plant, 0
+                ) > 0
+            )
 
     except Exception as exc:
         st.warning(f"Index not built yet ({exc}).")
@@ -407,10 +430,16 @@ with st.sidebar:
 
     with col1:
         if st.button("Reindex this plant", use_container_width=True):
-            with st.spinner(
-                f"Re-indexing {st.session_state.selected_plant} SOP..."
-            ):
-                count = reindex_plant(st.session_state.selected_plant)
+            selected_scope = st.session_state.selected_plant
+            with st.spinner(f"Re-indexing {selected_scope} SOP..."):
+                if selected_scope == ALL_PLANT_MODE:
+                    counts = {
+                        code: reindex_plant(code)
+                        for code in ("BTO", "WMB")
+                    }
+                    count = sum(counts.values())
+                else:
+                    count = reindex_plant(selected_scope)
 
             st.success(f"Indexed {count} chunks.")
             get_agent.clear()
@@ -442,16 +471,28 @@ with st.sidebar:
 # ---------------------------------------------------------------------------
 
 plant_code = st.session_state.selected_plant
-plant = PLANTS[plant_code]
+if plant_code == ALL_PLANT_MODE:
+    plant = {
+        "name": "BTO + WMB — Overall Hydro Operations",
+        "location": "Batathota MHPP and Wembiyagoda MHPP",
+    }
+else:
+    plant = PLANTS[plant_code]
 history = get_history(plant_code)
 
 st.header(f"{plant['name']} — Operations Assistant")
 
 if not index_ready:
-    st.info(
-        "This plant has not been indexed yet. Add its SOP PDF to the "
-        "`data/` folder and click **Reindex this plant** in the sidebar."
-    )
+    if plant_code == ALL_PLANT_MODE:
+        st.info(
+            "One or both plant SOP indexes are not ready. Add the BTO and WMB "
+            "SOP PDFs to the `data/` folder and click **Reindex this plant**."
+        )
+    else:
+        st.info(
+            "This plant has not been indexed yet. Add its SOP PDF to the "
+            "`data/` folder and click **Reindex this plant** in the sidebar."
+        )
 
 # Welcome screen prevents a blank main area before the first question.
 if not history and st.session_state.pending_question is None:
@@ -534,7 +575,7 @@ for turn in history:
 pending_question = st.session_state.pending_question
 
 st.text_area(
-    f"Ask about {plant_code} procedures, safety, or equipment...",
+    f"Ask about {plant_code} plant details, procedures, safety, or equipment...",
     key="question_input",
     height=100,
     placeholder=(
@@ -621,15 +662,7 @@ if prompt:
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        if not index_ready:
-            answer_text = (
-                "This plant has not been indexed yet. "
-                "Please reindex it from the sidebar first."
-            )
-            sources = []
-            st.markdown(answer_text)
-
-        else:
+        if True:
             # English-only question -> English-only answer
             # Sinhala-only question -> Sinhala-only answer
             # Mixed Sinhala + English question -> bilingual answer
@@ -667,7 +700,14 @@ if prompt:
                 prompt
                 + "\\n\\n"
                 + language_instruction
-                + " Use the selected plant's SOP as the source. "
+                + (
+                    " The selected scope includes both BTO and WMB. "
+                    "Search both plants for overall questions and comparisons, "
+                    "and clearly identify each plant's values. "
+                    if plant_code == ALL_PLANT_MODE else
+                    " Use the selected plant's SOP and technical details. "
+                )
+                + "Use only the supplied workbook and relevant SOP sources. "
                 "Do not invent procedures or technical values."
             )
 
