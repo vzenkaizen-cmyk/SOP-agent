@@ -8,6 +8,7 @@ Run:
 """
 
 import uuid
+import re
 import streamlit as st
 
 from plant_registry import PLANTS, list_plant_codes
@@ -261,6 +262,31 @@ def get_history(plant_code):
 @st.cache_resource(show_spinner=False)
 def get_agent(plant_code):
     return build_agent(plant_code)
+
+
+def detect_plant_scope(question, fallback_scope=ALL_PLANT_MODE):
+    """Detect BTO, WMB, or both from the user's question automatically."""
+    question_lower = question.lower()
+
+    mentions_bto = bool(
+        re.search(r"\bbto\b", question_lower)
+        or "batathota" in question_lower
+    )
+    mentions_wmb = bool(
+        re.search(r"\bwmb\b", question_lower)
+        or "wembiyagoda" in question_lower
+    )
+
+    if mentions_bto and mentions_wmb:
+        return ALL_PLANT_MODE
+    if "both plants" in question_lower or "overall" in question_lower:
+        return ALL_PLANT_MODE
+    if mentions_bto:
+        return "BTO"
+    if mentions_wmb:
+        return "WMB"
+
+    return fallback_scope
 
 
 # ---------------------------------------------------------------------------
@@ -521,6 +547,17 @@ with st.sidebar:
 # Main chat area
 # ---------------------------------------------------------------------------
 
+# If the pending question names a plant, automatically use that plant's
+# knowledge base. Questions mentioning both plants use the combined index.
+if st.session_state.pending_question:
+    detected_scope = detect_plant_scope(
+        st.session_state.pending_question,
+        st.session_state.selected_plant,
+    )
+    if detected_scope != st.session_state.selected_plant:
+        st.session_state.selected_plant = detected_scope
+        st.session_state.thread_id = str(uuid.uuid4())
+
 plant_code = st.session_state.selected_plant
 if plant_code == ALL_PLANT_MODE:
     plant = {
@@ -625,30 +662,6 @@ for turn in history:
 
 pending_question = st.session_state.pending_question
 
-question_scope_label = (
-    "BTO and WMB"
-    if plant_code == ALL_PLANT_MODE
-    else plant_code
-)
-
-st.text_area(
-    f"Ask about {question_scope_label} plant details, procedures, safety, or equipment...",
-    key="question_input",
-    height=100,
-    placeholder=(
-        "Type your question in English or Sinhala. "
-        "Use the Sinhala keyboard below if your device does not have "
-        "a Sinhala keyboard installed."
-    ),
-)
-
-st.button(
-    "Send question",
-    key="send_typed_question",
-    type="primary",
-    on_click=submit_typed_question,
-)
-
 prompt = None
 if pending_question is not None:
     prompt = pending_question
@@ -726,6 +739,13 @@ if prompt:
                     "answer",
                     "The agent did not return an answer."
                 )
+                # Hide redundant workbook/SOP source-attribution lines in the
+                # answer while keeping the existing source details available.
+                answer_text = re.sub(
+                    r"(?im)^\s*source\s*:\s*.*(?:\n|$)",
+                    "",
+                    answer_text,
+                ).strip()
                 sources = result.get("sources", []) or []
 
                 st.markdown(answer_text)
@@ -762,6 +782,9 @@ if prompt:
         }
     )
 
+# ---------------------------------------------------------------------------
+# Sinhala keyboard and bottom-anchored question area
+# ---------------------------------------------------------------------------
 
 # Keep the Sinhala keyboard at the bottom so it remains visible after answers.
 with st.container(key="sinhala_keyboard_section"):
@@ -818,4 +841,30 @@ with st.container(key="sinhala_keyboard_section"):
                 use_container_width=True,
                 on_click=clear_question_input,
             )
+
+
+
+question_scope_label = (
+    "BTO and WMB"
+    if plant_code == ALL_PLANT_MODE
+    else plant_code
+)
+
+st.text_area(
+    f"Ask about {question_scope_label} plant details, procedures, safety, or equipment...",
+    key="question_input",
+    height=100,
+    placeholder=(
+        "Type your question in English or Sinhala. "
+        "Use the Sinhala keyboard above if your device does not have "
+        "a Sinhala keyboard installed."
+    ),
+)
+
+st.button(
+    "Send question",
+    key="send_typed_question",
+    type="primary",
+    on_click=submit_typed_question,
+)
 
