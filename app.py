@@ -241,8 +241,14 @@ if "thread_id" not in st.session_state:
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = {}
 
-if "selected_plant" not in st.session_state:
-    st.session_state.selected_plant = list_plant_codes()[0]
+if "default_scope_initialized" not in st.session_state:
+    available_plant_codes = list_plant_codes()
+    st.session_state.selected_plant = (
+        ALL_PLANT_MODE
+        if all(code in available_plant_codes for code in ("BTO", "WMB"))
+        else available_plant_codes[0]
+    )
+    st.session_state.default_scope_initialized = True
 
 if "pending_question" not in st.session_state:
     st.session_state.pending_question = None
@@ -388,8 +394,8 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
     st.caption(
-        "Select **BTO + WMB — Overall / Both Plants** above to ask "
-        "questions covering both hydro plants together."
+        "BTO and WMB are searched together by default. "
+        "Choose an individual plant only when you want a plant-specific answer."
     )
 
     for code in plant_codes:
@@ -619,8 +625,14 @@ for turn in history:
 
 pending_question = st.session_state.pending_question
 
+question_scope_label = (
+    "BTO and WMB"
+    if plant_code == ALL_PLANT_MODE
+    else plant_code
+)
+
 st.text_area(
-    f"Ask about {plant_code} plant details, procedures, safety, or equipment...",
+    f"Ask about {question_scope_label} plant details, procedures, safety, or equipment...",
     key="question_input",
     height=100,
     placeholder=(
@@ -629,61 +641,6 @@ st.text_area(
         "a Sinhala keyboard installed."
     ),
 )
-
-with st.container(key="sinhala_keyboard_section"):
-    with st.expander("සිංහල යතුරුපුවරුව / Sinhala Keyboard", expanded=False):
-        st.markdown(
-            '<div class="sinhala-keyboard-note">'
-            'අවශ්‍ය අකුරු තෝරන්න. අකුරු ප්‍රශ්න කොටුවට එක් වේ. '
-            'Select Sinhala characters to insert them into the question box.'
-            '</div>',
-            unsafe_allow_html=True,
-        )
-
-        sinhala_keyboard_rows = [
-            list("අආඇඈඉඊඋඌඑඒඓඔඕඖ"),
-            list("කඛගඝඞඟචඡජඣඤ"),
-            list("ටඨඩඪණඬතථදධනඳ"),
-            list("පඵබභමඹයරලව"),
-            list("ශෂසහළෆ"),
-            list("ාැෑිීුූෘෙේෛොෝෞංඃ්"),
-        ]
-
-        for row_index, keyboard_row in enumerate(sinhala_keyboard_rows):
-            key_columns = st.columns(min(10, len(keyboard_row)))
-            for key_index, character in enumerate(keyboard_row):
-                with key_columns[key_index % len(key_columns)]:
-                    st.button(
-                        character,
-                        key=f"sinhala_key_{row_index}_{key_index}",
-                        use_container_width=True,
-                        on_click=append_question_text,
-                        args=(character,),
-                    )
-
-        utility_columns = st.columns(3)
-        with utility_columns[0]:
-            st.button(
-                "Space",
-                key="sinhala_key_space",
-                use_container_width=True,
-                on_click=append_question_text,
-                args=(" ",),
-            )
-        with utility_columns[1]:
-            st.button(
-                "⌫ Backspace",
-                key="sinhala_key_backspace",
-                use_container_width=True,
-                on_click=delete_question_character,
-            )
-        with utility_columns[2]:
-            st.button(
-                "Clear",
-                key="sinhala_key_clear",
-                use_container_width=True,
-                on_click=clear_question_input,
-            )
 
 st.button(
     "Send question",
@@ -804,3 +761,61 @@ if prompt:
             "sources": sources,
         }
     )
+
+
+# Keep the Sinhala keyboard at the bottom so it remains visible after answers.
+with st.container(key="sinhala_keyboard_section"):
+    with st.expander("සිංහල යතුරුපුවරුව / Sinhala Keyboard", expanded=False):
+        st.markdown(
+            '<div class="sinhala-keyboard-note">'
+            'අවශ්‍ය අකුරු තෝරන්න. අකුරු ප්‍රශ්න කොටුවට එක් වේ. '
+            'Select Sinhala characters to insert them into the question box.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+        sinhala_keyboard_rows = [
+            list("අආඇඈඉඊඋඌඑඒඓඔඕඖ"),
+            list("කඛගඝඞඟචඡජඣඤ"),
+            list("ටඨඩඪණඬතථදධනඳ"),
+            list("පඵබභමඹයරලව"),
+            list("ශෂසහළෆ"),
+            list("ාැෑිීුූෘෙේෛොෝෞංඃ්"),
+        ]
+
+        for row_index, keyboard_row in enumerate(sinhala_keyboard_rows):
+            key_columns = st.columns(min(10, len(keyboard_row)))
+            for key_index, character in enumerate(keyboard_row):
+                with key_columns[key_index % len(key_columns)]:
+                    st.button(
+                        character,
+                        key=f"sinhala_key_{row_index}_{key_index}",
+                        use_container_width=True,
+                        on_click=append_question_text,
+                        args=(character,),
+                    )
+
+        utility_columns = st.columns(3)
+        with utility_columns[0]:
+            st.button(
+                "Space",
+                key="sinhala_key_space",
+                use_container_width=True,
+                on_click=append_question_text,
+                args=(" ",),
+            )
+        with utility_columns[1]:
+            st.button(
+                "⌫ Backspace",
+                key="sinhala_key_backspace",
+                use_container_width=True,
+                on_click=delete_question_character,
+            )
+        with utility_columns[2]:
+            st.button(
+                "Clear",
+                key="sinhala_key_clear",
+                use_container_width=True,
+                on_click=clear_question_input,
+            )
+
