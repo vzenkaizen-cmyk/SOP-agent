@@ -343,24 +343,6 @@ def clear_question_input():
     st.session_state.question_input = ""
 
 
-def remove_source_attributions(answer):
-    """Remove source/reference attribution lines from English or Sinhala answers."""
-    cleaned_lines = []
-    source_line_patterns = (
-        re.compile(r"^\\s*(?:sources?|references?)\\s*[:：].*$", re.IGNORECASE),
-        re.compile(r"^\\s*මූලාශ්‍ර(?:ය|යන්)?\\s*[:：].*$"),
-    )
-
-    for line in answer.splitlines():
-        if any(pattern.match(line) for pattern in source_line_patterns):
-            continue
-        cleaned_lines.append(line)
-
-    cleaned_answer = "\\n".join(cleaned_lines)
-    cleaned_answer = re.sub(r"\\n{3,}", "\\n\\n", cleaned_answer)
-    return cleaned_answer.strip()
-
-
 def submit_typed_question():
     """Queue the typed question before the next Streamlit rerun."""
     question = st.session_state.get("question_input", "").strip()
@@ -732,6 +714,23 @@ for turn in history:
     with st.chat_message(turn["role"]):
         st.markdown(turn["content"])
 
+        if turn.get("sources"):
+            with st.expander(f"Sources ({len(turn['sources'])})"):
+                for source in turn["sources"]:
+                    st.markdown(
+                        f"**SOP {source['sop_number']}: "
+                        f"{source['sop_title']}**  \n"
+                        f"*{source['source_file']} · "
+                        f"similarity distance {source['distance']}*"
+                    )
+                    source_text = source["text"]
+                    st.text(
+                        source_text[:600]
+                        + ("..." if len(source_text) > 600 else "")
+                    )
+                    st.markdown("---")
+
+
 # ---------------------------------------------------------------------------
 # Chat input and question processing
 # ---------------------------------------------------------------------------
@@ -815,13 +814,32 @@ if prompt:
                     "answer",
                     "The agent did not return an answer."
                 )
-                # Hide source/reference attribution lines in both English and Sinhala.
-                answer_text = remove_source_attributions(answer_text)
-
-                # Source retrieval remains internal and is not displayed to users.
-                sources = []
+                # Hide redundant workbook/SOP source-attribution lines in the
+                # answer while keeping the existing source details available.
+                answer_text = re.sub(
+                    r"(?im)^\s*source\s*:\s*.*(?:\n|$)",
+                    "",
+                    answer_text,
+                ).strip()
+                sources = result.get("sources", []) or []
 
                 st.markdown(answer_text)
+
+                if sources:
+                    with st.expander(f"Sources ({len(sources)})"):
+                        for source in sources:
+                            st.markdown(
+                                f"**SOP {source['sop_number']}: "
+                                f"{source['sop_title']}**  \n"
+                                f"*{source['source_file']} · "
+                                f"similarity distance {source['distance']}*"
+                            )
+                            source_text = source["text"]
+                            st.text(
+                                source_text[:600]
+                                + ("..." if len(source_text) > 600 else "")
+                            )
+                            st.markdown("---")
 
             except Exception as exc:
                 answer_text = (
@@ -838,4 +856,3 @@ if prompt:
             "sources": sources,
         }
     )
-
