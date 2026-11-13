@@ -294,24 +294,35 @@ def detect_plant_scope(question, fallback_scope=ALL_PLANT_MODE):
 # ---------------------------------------------------------------------------
 
 def make_example_question(plant_code, sop_number, topic):
-    """
-    Build a complete English question for every SOP topic button.
-    Clicking a topic submits an English question and requests an English-only answer.
-    """
+    """Build a focused question that retrieves the exact clicked SOP section."""
+    plant_name = PLANTS[plant_code]["name"]
+
+    # Keep the exact plant, SOP number and title at the beginning of the query.
+    # This makes the clicked navigation topic much easier for semantic retrieval
+    # to match than a broad request for a "complete procedure".
     if sop_number in ("SOP-001", "SOP-002") and plant_code == "WMB":
         return (
-            f"Explain the {topic} responsibilities at the WMB power plant "
-            "according to the relevant SOP. Include the roles and "
-            "responsibilities stated in the document. Use only information "
-            "provided in the SOP and answer fully in English."
+            f"{plant_code} ({plant_name}) — {sop_number}: {topic}. "
+            f"Find and use the exact {sop_number} section titled '{topic}' "
+            f"in the {plant_code} SOP. Explain the responsibilities, roles, "
+            "and requirements stated in that section. Search the supplied "
+            "SOP content for this SOP number and title before answering. "
+            "Answer fully in English and use only the supplied SOP."
         )
 
     return (
-        f"Explain the complete {topic} procedure for the {plant_code} "
-        "power plant according to its SOP. Include the purpose, scope, "
-        "prerequisites, responsibilities, safety precautions, and all "
-        "operational steps stated in the document. Use only information "
-        "provided in the SOP and answer fully in English."
+        f"{plant_code} ({plant_name}) — {sop_number}: {topic}. "
+        f"Find and use the exact {sop_number} section titled '{topic}' "
+        f"in the {plant_code} plant SOP. Retrieve the relevant content for "
+        f"'{topic}' and explain what that section actually says, including "
+        "its purpose, scope, prerequisites, responsibilities, safety "
+        "precautions and operational steps wherever these are stated. "
+        "Search by both the SOP number and the exact topic title. Do not "
+        "substitute another SOP or another plant's procedure. Do not claim "
+        "the section is unavailable until the supplied SOP content has been "
+        "checked for this SOP number, title and close wording. If the section "
+        "is genuinely absent, clearly state that. Answer fully in English "
+        "using only the supplied SOP content; do not invent missing steps."
     )
 
 
