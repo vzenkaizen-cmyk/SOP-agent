@@ -367,6 +367,18 @@ def select_sop_question(plant_code, question):
     st.rerun()
 
 
+# Automatically determine the plant scope before rendering the sidebar.
+# Questions that do not name a plant use the combined BTO + WMB knowledge base.
+if st.session_state.pending_question:
+    detected_scope = detect_plant_scope(
+        st.session_state.pending_question,
+        ALL_PLANT_MODE,
+    )
+    if detected_scope != st.session_state.selected_plant:
+        st.session_state.selected_plant = detected_scope
+        st.session_state.thread_id = str(uuid.uuid4())
+
+
 # ---------------------------------------------------------------------------
 # Sidebar
 # ---------------------------------------------------------------------------
@@ -376,34 +388,9 @@ with st.sidebar:
     st.caption("Plant Operations Assistant")
 
     plant_codes = list_plant_codes()
-    selection_options = list(plant_codes)
-    if "BTO" in plant_codes and "WMB" in plant_codes:
-        selection_options.append(ALL_PLANT_MODE)
 
-    plant_labels = {
-        code: f"{code} — {PLANTS[code]['name']}"
-        for code in plant_codes
-    }
-    plant_labels[ALL_PLANT_MODE] = "BTO + WMB — Overall / Both Plants"
-
-    # Use a plant-specific key so a topic click can switch plants safely.
-    # This avoids changing a widget's state after it has been instantiated.
-    selector_key = f"plant_selector_{st.session_state.selected_plant}"
-
-    selected = st.selectbox(
-        "Select plant",
-        options=selection_options,
-        format_func=lambda code: plant_labels[code],
-        index=selection_options.index(st.session_state.selected_plant)
-        if st.session_state.selected_plant in selection_options else 0,
-        key=selector_key,
-    )
-
-    if selected != st.session_state.selected_plant:
-        st.session_state.selected_plant = selected
-        st.session_state.thread_id = str(uuid.uuid4())
-        st.rerun()
-
+    # Plant scope is detected automatically from each question.
+    st.caption("Plant scope is selected automatically from your question.")
     if st.session_state.selected_plant == ALL_PLANT_MODE:
         st.markdown(
             "**BTO — Batathota MHPP**  \\n"
@@ -431,8 +418,8 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
     st.caption(
-        "BTO and WMB are searched together by default. "
-        "Choose an individual plant only when you want a plant-specific answer."
+        "Ask about BTO, WMB, or both plants together. "
+        "The agent automatically detects the plant or plants from your question."
     )
 
     for code in plant_codes:
@@ -481,7 +468,7 @@ with st.sidebar:
                 st.info(
                     "The SOP topic list has not yet been configured "
                     "for this plant. Its indexed SOP can still be queried "
-                    "after selecting the plant."
+                    "by asking a question about that plant."
                 )
 
     # -------------------------------------------------------
@@ -558,17 +545,6 @@ with st.sidebar:
 # Main chat area
 # ---------------------------------------------------------------------------
 
-# If the pending question names a plant, automatically use that plant's
-# knowledge base. Questions mentioning both plants use the combined index.
-if st.session_state.pending_question:
-    detected_scope = detect_plant_scope(
-        st.session_state.pending_question,
-        st.session_state.selected_plant,
-    )
-    if detected_scope != st.session_state.selected_plant:
-        st.session_state.selected_plant = detected_scope
-        st.session_state.thread_id = str(uuid.uuid4())
-
 plant_code = st.session_state.selected_plant
 if plant_code == ALL_PLANT_MODE:
     plant = {
@@ -580,6 +556,94 @@ else:
 history = get_history(plant_code)
 
 st.header(f"{plant['name']} — Operations Assistant")
+
+# ---------------------------------------------------------------------------
+# Sinhala keyboard and question input (kept at the top of the page)
+# ---------------------------------------------------------------------------
+
+# Keep the question controls above the conversation and generated answers.
+with st.container(key="sinhala_keyboard_section"):
+    with st.expander("සිංහල යතුරුපුවරුව / Sinhala Keyboard", expanded=False):
+        st.markdown(
+            '<div class="sinhala-keyboard-note">'
+            'අවශ්‍ය අකුරු තෝරන්න. අකුරු ප්‍රශ්න කොටුවට එක් වේ. '
+            'Select Sinhala characters to insert them into the question box.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+        sinhala_keyboard_rows = [
+            list("අආඇඈඉඊඋඌඑඒඓඔඕඖ"),
+            list("කඛගඝඞඟචඡජඣඤ"),
+            list("ටඨඩඪණඬතථදධනඳ"),
+            list("පඵබභමඹයරලව"),
+            list("ශෂසහළෆ"),
+            list("ාැෑිීුූෘෙේෛොෝෞංඃ්"),
+        ]
+
+        for row_index, keyboard_row in enumerate(sinhala_keyboard_rows):
+            key_columns = st.columns(min(10, len(keyboard_row)))
+            for key_index, character in enumerate(keyboard_row):
+                with key_columns[key_index % len(key_columns)]:
+                    st.button(
+                        character,
+                        key=f"sinhala_key_{row_index}_{key_index}",
+                        use_container_width=True,
+                        on_click=append_question_text,
+                        args=(character,),
+                    )
+
+        utility_columns = st.columns(3)
+        with utility_columns[0]:
+            st.button(
+                "Space",
+                key="sinhala_key_space",
+                use_container_width=True,
+                on_click=append_question_text,
+                args=(" ",),
+            )
+        with utility_columns[1]:
+            st.button(
+                "⌫ Backspace",
+                key="sinhala_key_backspace",
+                use_container_width=True,
+                on_click=delete_question_character,
+            )
+        with utility_columns[2]:
+            st.button(
+                "Clear",
+                key="sinhala_key_clear",
+                use_container_width=True,
+                on_click=clear_question_input,
+            )
+
+
+
+question_scope_label = (
+    "BTO and WMB"
+    if plant_code == ALL_PLANT_MODE
+    else plant_code
+)
+
+st.text_area(
+    f"Ask about {question_scope_label} plant details, procedures, safety, or equipment...",
+    key="question_input",
+    height=100,
+    placeholder=(
+        "Type your question in English or Sinhala. "
+        "Use the Sinhala keyboard above if your device does not have "
+        "a Sinhala keyboard installed."
+    ),
+)
+
+st.button(
+    "Send question",
+    key="send_typed_question",
+    type="primary",
+    on_click=submit_typed_question,
+)
+
+
 
 if not index_ready:
     if plant_code == ALL_PLANT_MODE:
@@ -792,90 +856,4 @@ if prompt:
             "sources": sources,
         }
     )
-
-# ---------------------------------------------------------------------------
-# Sinhala keyboard and bottom-anchored question area
-# ---------------------------------------------------------------------------
-
-# Keep the Sinhala keyboard at the bottom so it remains visible after answers.
-with st.container(key="sinhala_keyboard_section"):
-    with st.expander("සිංහල යතුරුපුවරුව / Sinhala Keyboard", expanded=False):
-        st.markdown(
-            '<div class="sinhala-keyboard-note">'
-            'අවශ්‍ය අකුරු තෝරන්න. අකුරු ප්‍රශ්න කොටුවට එක් වේ. '
-            'Select Sinhala characters to insert them into the question box.'
-            '</div>',
-            unsafe_allow_html=True,
-        )
-
-        sinhala_keyboard_rows = [
-            list("අආඇඈඉඊඋඌඑඒඓඔඕඖ"),
-            list("කඛගඝඞඟචඡජඣඤ"),
-            list("ටඨඩඪණඬතථදධනඳ"),
-            list("පඵබභමඹයරලව"),
-            list("ශෂසහළෆ"),
-            list("ාැෑිීුූෘෙේෛොෝෞංඃ්"),
-        ]
-
-        for row_index, keyboard_row in enumerate(sinhala_keyboard_rows):
-            key_columns = st.columns(min(10, len(keyboard_row)))
-            for key_index, character in enumerate(keyboard_row):
-                with key_columns[key_index % len(key_columns)]:
-                    st.button(
-                        character,
-                        key=f"sinhala_key_{row_index}_{key_index}",
-                        use_container_width=True,
-                        on_click=append_question_text,
-                        args=(character,),
-                    )
-
-        utility_columns = st.columns(3)
-        with utility_columns[0]:
-            st.button(
-                "Space",
-                key="sinhala_key_space",
-                use_container_width=True,
-                on_click=append_question_text,
-                args=(" ",),
-            )
-        with utility_columns[1]:
-            st.button(
-                "⌫ Backspace",
-                key="sinhala_key_backspace",
-                use_container_width=True,
-                on_click=delete_question_character,
-            )
-        with utility_columns[2]:
-            st.button(
-                "Clear",
-                key="sinhala_key_clear",
-                use_container_width=True,
-                on_click=clear_question_input,
-            )
-
-
-
-question_scope_label = (
-    "BTO and WMB"
-    if plant_code == ALL_PLANT_MODE
-    else plant_code
-)
-
-st.text_area(
-    f"Ask about {question_scope_label} plant details, procedures, safety, or equipment...",
-    key="question_input",
-    height=100,
-    placeholder=(
-        "Type your question in English or Sinhala. "
-        "Use the Sinhala keyboard above if your device does not have "
-        "a Sinhala keyboard installed."
-    ),
-)
-
-st.button(
-    "Send question",
-    key="send_typed_question",
-    type="primary",
-    on_click=submit_typed_question,
-)
 
