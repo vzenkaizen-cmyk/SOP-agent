@@ -542,15 +542,28 @@ with st.sidebar:
                 st.caption(metadata["note"])
 
             if topics:
+                # BTO entries contain (SOP number, title), while WMB entries
+                # contain (SOP number, title, category). Support both formats.
                 categories = []
-                for _, _, category in topics:
+                for topic_entry in topics:
+                    category = (
+                        topic_entry[2]
+                        if len(topic_entry) > 2
+                        else "General Operations"
+                    )
                     if category not in categories:
                         categories.append(category)
 
                 for category in categories:
                     st.markdown(f"**{category}**")
 
-                    for sop_number, topic, topic_category in topics:
+                    for topic_entry in topics:
+                        sop_number, topic = topic_entry[:2]
+                        topic_category = (
+                            topic_entry[2]
+                            if len(topic_entry) > 2
+                            else "General Operations"
+                        )
                         if topic_category != category:
                             continue
 
