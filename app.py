@@ -161,49 +161,53 @@ st.markdown(
 # ---------------------------------------------------------------------------
 
 BTO_TOPICS = [
-    ("SOP-001", "Startup, Stop and Emergency Stop Procedure", "Emergency & Machine Operation"),
-    ("SOP-002", "Startup after short-term suspension (within 24 hours)", "Machine Operation"),
-    ("SOP-003", "Power Transformer Testing and Cleaning", "Electrical Equipment & Maintenance"),
-    ("SOP-004", "HVCB Testing and Cleaning", "Electrical Equipment & Maintenance"),
-    ("SOP-005", "CT/PT Cleaning", "Electrical Equipment & Maintenance"),
-    ("SOP-006", "Intake Gate Operation", "Water Management & Hydraulic Systems"),
-    ("SOP-007", "Forebay Sand Removing", "Water Management & Hydraulic Systems"),
-    ("SOP-008", "Sand Gate Operation", "Water Management & Hydraulic Systems"),
-    ("SOP-009", "MIV Operation", "Water Management & Hydraulic Systems"),
-    ("SOP-010", "Cooling Operation", "Machine Operation"),
-    ("SOP-011", "Governor Operation", "Machine Operation"),
-    ("SOP-012", "Crane Operation", "Machine Operation"),
-    ("SOP-013", "Trash Machine Operation", "Water Management & Hydraulic Systems"),
-    ("SOP-014", "Water Leakage in Penstock", "Emergency & Safety Procedures"),
-    ("SOP-015", "Abnormal Water Leakage in Turbine", "Emergency & Safety Procedures"),
-    ("SOP-016", "Water Leakage to Powerhouse due to Flood", "Emergency & Safety Procedures"),
-    ("SOP-017", "Electrical Fire", "Emergency & Safety Procedures"),
+    ("VLL\BTO\SOP-001", "Standard Operation Procedure for Lock out Tagout System"),
+    ("VLL\BTO\SOP-002", "Standard Operating Startup, Stop and Emergency Stop Procedure"),
+    ("VLL\BTO\SOP-003", "Standard Start-up operation after the short-term suspension of operation (within 24 hours)"),
+    ("VLL\BTO\SOP-004", "Standard operation procedure for power transformer testing and cleaning work"),
+    ("VLL\BTO\SOP-005", "Standard operation procedure of HVCB testing and cleaning work"),
+    ("VLL\BTO\SOP-006", "Standard operation procedure of CT PT Cleaning"),
+    ("VLL\BTO\SOP-007", "Standard operation procedure of Intake gate"),
+    ("VLL\BTO\SOP-008", "Standard operation procedure of forebay sand removing"),
+    ("VLL\BTO\SOP-009", "Standard operation procedure of Sand gate operation"),
+    ("VLL\BTO\SOP-0010", "Standard operation procedure of MIV operation"),
+    ("VLL\BTO\SOP-0011", "Standard operation procedure of cooling operation"),
+    ("VLL\BTO\SOP-0012", "Standard operation procedure of governor operation"),
+    ("VLL\BTO\SOP-0013", "Standard operation procedure of crane operation"),
+    ("VLL\BTO\SOP-0014", "Standard operation procedure of trash machine operation"),
+    ("VLL\BTO\SOP-0015", "Standard operation procedure for water leakage in penstock"),
+    ("VLL\BTO\SOP-0016", "Standard operation procedure for abnormal water leakage in turbine"),
+    ("VLL\BTO\SOP-0017", "Standard operation procedure for water leakage to powerhouse due to flood"),
+    ("VLL\BTO\SOP-018",  "Standard operation procedure in electrical fire"),
+    ("VLL\BTO\SOP-019",  "Standard operation procedure for channel inspection"),
+    ("VLL\BTO\SOP-020",  "Standard Operating Procedure – Authority level for Plant Shut Down Purpose"),
+    ("VLL\BTO\SOP-021",  "Standard Operating Procedure – Inventory Process"),
 ]
 
 WMB_TOPICS = [
-    ("SOP-001", "Function Responsibilities", "Management, Approvals & Documentation"),
-    ("SOP-002", "Location Responsibilities", "Management, Approvals & Documentation"),
-    ("SOP-003", "Lockout Tagout System", "Electrical Equipment & Maintenance"),
-    ("SOP-004", "Startup, Stop and Emergency Stop Procedure", "Emergency & Machine Operation"),
-    ("SOP-005", "Startup after short-term suspension (within 24 hours)", "Machine Operation"),
-    ("SOP-006", "Power Transformer Testing and Cleaning", "Electrical Equipment & Maintenance"),
-    ("SOP-007", "HVCB Testing and Cleaning", "Electrical Equipment & Maintenance"),
-    ("SOP-008", "CT/PT Cleaning", "Electrical Equipment & Maintenance"),
-    ("SOP-009", "Intake Gate Operation", "Water Management & Hydraulic Systems"),
-    ("SOP-010", "Forebay Sand Removing", "Water Management & Hydraulic Systems"),
-    ("SOP-011", "Sand Gate Operation", "Water Management & Hydraulic Systems"),
-    ("SOP-012", "MIV Operation", "Water Management & Hydraulic Systems"),
-    ("SOP-013", "Cooling Operation", "Machine Operation"),
-    ("SOP-014", "Governor Operation", "Machine Operation"),
-    ("SOP-015", "Crane Operation", "Machine Operation"),
-    ("SOP-016", "Trash Machine Operation", "Water Management & Hydraulic Systems"),
-    ("SOP-017", "Water Leakage in Penstock", "Emergency & Safety Procedures"),
-    ("SOP-018", "Abnormal Water Leakage in Turbine", "Emergency & Safety Procedures"),
-    ("SOP-019", "Water Leakage to Powerhouse due to Flood", "Emergency & Safety Procedures"),
-    ("SOP-020", "Electrical Fire", "Emergency & Safety Procedures"),
-    ("SOP-021", "Channel Inspection", "Water Management & Hydraulic Systems"),
-    ("SOP-022", "Authority Level for Plant Shutdown", "Management, Approvals & Documentation"),
-    ("SOP-023", "Inventory Process", "Management, Approvals & Documentation"),
+    ("VLL\ WMB \ SOP-001", "Function Responsibilities", "Management, Approvals & Documentation"),
+    ("VLL\ WMB \ SOP-002", "Location Responsibilities", "Management, Approvals & Documentation"),
+    ("VLL\ WMB \ SOP-003", "Lockout Tagout System", "Electrical Equipment & Maintenance"),
+    ("VLL\ WMB \ SOP-004", "Startup, Stop and Emergency Stop Procedure", "Emergency & Machine Operation"),
+    ("VLL\ WMB \ SOP-005", "Startup after short-term suspension (within 24 hours)", "Machine Operation"),
+    ("VLL\ WMB \ SOP-006", "Power Transformer Testing and Cleaning", "Electrical Equipment & Maintenance"),
+    ("VLL\ WMB \ SOP-007", "HVCB Testing and Cleaning", "Electrical Equipment & Maintenance"),
+    ("VLL\ WMB \ SOP-008", "CT/PT Cleaning", "Electrical Equipment & Maintenance"),
+    ("VLL\ WMB \ SOP-009", "Intake Gate Operation", "Water Management & Hydraulic Systems"),
+    ("VLL\ WMB \ SOP-0010", "Forebay Sand Removing", "Water Management & Hydraulic Systems"),
+    ("VLL\ WMB \ SOP-0011", "Sand Gate Operation", "Water Management & Hydraulic Systems"),
+    ("VLL\ WMB \ SOP-0012", "MIV Operation", "Water Management & Hydraulic Systems"),
+    ("VLL\ WMB \ SOP-0013", "Cooling Operation", "Machine Operation"),
+    ("VLL\ WMB \ SOP-0014", "Governor Operation", "Machine Operation"),
+    ("VLL\ WMB \ SOP-0015", "Crane Operation", "Machine Operation"),
+    ("VLL\ WMB \ SOP-0016", "Trash Machine Operation", "Water Management & Hydraulic Systems"),
+    ("VLL\ WMB \ SOP-0017", "Water Leakage in Penstock", "Emergency & Safety Procedures"),
+    ("VLL\ WMB \ SOP-0018", "Abnormal Water Leakage in Turbine", "Emergency & Safety Procedures"),
+    ("VLL\ WMB \ SOP-0019", "Water Leakage to Powerhouse due to Flood", "Emergency & Safety Procedures"),
+    ("VLL\ WMB \ SOP-0020", "Electrical Fire", "Emergency & Safety Procedures"),
+    ("VLL\ WMB \ SOP-0021", "Channel Inspection", "Water Management & Hydraulic Systems"),
+    ("VLL\ WMB \ SOP-0022", "Authority Level for Plant Shutdown", "Management, Approvals & Documentation"),
+    ("VLL\ WMB \ SOP-0023", "Inventory Process", "Management, Approvals & Documentation"),
 ]
 
 SOP_TOPICS = {
@@ -268,16 +272,51 @@ def get_sop_source_key(source):
         str(source.get("sop_number", "")),
         str(source.get("sop_title", "")),
         str(source.get("source_file", "")),
+        str(source.get("plant_code", source.get("site_code", ""))),
     )
 
 
-def select_sop_source(source):
-    """Remember which clickable SOP reference the user selected."""
-    st.session_state.selected_sop_source = source
+def get_source_plant_code(source, fallback_scope=ALL_PLANT_MODE):
+    """Identify the plant owning a retrieved SOP source."""
+    metadata = source.get("metadata", {}) or {}
+    candidates = [
+        source.get("plant_code"),
+        source.get("site_code"),
+        source.get("plant"),
+        metadata.get("plant_code"),
+        metadata.get("site_code"),
+        metadata.get("plant"),
+        source.get("source_file"),
+    ]
+
+    for candidate in candidates:
+        if candidate is None:
+            continue
+        match = re.search(r"\b(BTO|WMB)\b", str(candidate).upper())
+        if match:
+            return match.group(1)
+
+    if fallback_scope in ("BTO", "WMB"):
+        return fallback_scope
+    return None
 
 
-def render_sop_sources(sources, key_prefix):
-    """Show clickable SOP number/title references and their source content."""
+def format_sop_reference(source, fallback_scope=ALL_PLANT_MODE):
+    """Format the SOP identifier in the requested Vidullanka format."""
+    sop_number = str(source.get("sop_number") or "SOP number unavailable").strip()
+    plant_code = get_source_plant_code(source, fallback_scope)
+
+    if sop_number.upper().startswith("VLL\\"):
+        return sop_number
+    if plant_code and sop_number != "SOP number unavailable":
+        if not sop_number.upper().startswith("SOP-"):
+            sop_number = f"SOP-{sop_number}"
+        return f"VLL\\{plant_code}\\{sop_number}"
+    return sop_number
+
+
+def render_sop_sources(sources, key_prefix, fallback_scope=ALL_PLANT_MODE):
+    """Show retrieved SOP references in a dropdown and reveal selected content."""
     if not sources:
         return
 
@@ -290,50 +329,34 @@ def render_sop_sources(sources, key_prefix):
             seen_sources.add(source_key)
             unique_sources.append(source)
 
-    st.markdown("**Relevant SOP References**")
+    labels = [
+        f"{format_sop_reference(source, fallback_scope)} — "
+        f"{source.get('sop_title') or 'SOP title unavailable'}"
+        for source in unique_sources
+    ]
 
-    for index, source in enumerate(unique_sources):
-        sop_number = source.get("sop_number") or "SOP number unavailable"
-        sop_title = source.get("sop_title") or "SOP title unavailable"
-
-        st.button(
-            f"📘 {sop_number} — {sop_title}",
-            key=f"{key_prefix}_{index}",
-            use_container_width=True,
-            on_click=select_sop_source,
-            args=(source,),
+    with st.expander("Relevant SOP References", expanded=False):
+        selected_label = st.selectbox(
+            "Select an SOP reference",
+            labels,
+            key=f"{key_prefix}_dropdown",
         )
+        selected_index = labels.index(selected_label)
+        selected_source = unique_sources[selected_index]
 
-    selected_source = st.session_state.get("selected_sop_source")
-    if (
-        selected_source
-        and get_sop_source_key(selected_source) in seen_sources
-    ):
-        selected_number = (
-            selected_source.get("sop_number") or "SOP number unavailable"
+        st.markdown(f"**SOP Number:** {format_sop_reference(selected_source, fallback_scope)}")
+        st.markdown(
+            f"**SOP Title:** "
+            f"{selected_source.get('sop_title') or 'SOP title unavailable'}"
         )
-        selected_title = (
-            selected_source.get("sop_title") or "SOP title unavailable"
+        st.caption(
+            f"Source document: "
+            f"{selected_source.get('source_file', 'Not specified')}"
         )
-
-        with st.expander(
-            f"{selected_number} — {selected_title}",
-            expanded=True,
-        ):
-            st.markdown(f"**SOP Number:** {selected_number}")
-            st.markdown(f"**SOP Title:** {selected_title}")
-            st.caption(
-                f"Source document: "
-                f"{selected_source.get('source_file', 'Not specified')}"
-            )
-            if selected_source.get("distance") is not None:
-                st.caption(
-                    f"Similarity distance: {selected_source['distance']}"
-                )
-            st.markdown("**Relevant SOP Content**")
-            st.text(
-                selected_source.get("text", "No source text is available.")
-            )
+        if selected_source.get("distance") is not None:
+            st.caption(f"Similarity distance: {selected_source['distance']}")
+        st.markdown("**Relevant SOP Content**")
+        st.text(selected_source.get("text", "No source text is available."))
 
 
 @st.cache_resource(show_spinner=False)
@@ -791,17 +814,11 @@ for turn_index, turn in enumerate(history):
     with st.chat_message(turn["role"]):
         st.markdown(turn["content"])
 
-        if turn["role"] == "user" and turn.get("related_sops"):
-            st.markdown("**Relevant SOP:**")
-            for sop in turn["related_sops"]:
-                st.markdown(
-                    f"📘 **{sop['sop_number']} — {sop['sop_title']}**"
-                )
-
         if turn["role"] == "assistant" and turn.get("sources"):
             render_sop_sources(
                 turn["sources"],
                 key_prefix=f"history_sop_source_{turn_index}",
+                fallback_scope=plant_code,
             )
 
 
@@ -825,14 +842,11 @@ if prompt:
             "role": "user",
             "content": prompt,
             "sources": None,
-            "related_sops": [],
         }
     )
 
     with st.chat_message("user"):
         st.markdown(prompt)
-        question_sop_placeholder = st.empty()
-
     with st.chat_message("assistant"):
         if True:
             # English-only question -> English-only answer
@@ -917,43 +931,27 @@ if prompt:
 
                 sources = unique_sources
 
-                # Add relevant SOP number/title directly below the question.
-                related_sops = []
-                seen_sop_labels = set()
-
-                for source in sources:
-                    sop_number = source.get("sop_number", "")
-                    sop_title = source.get("sop_title", "")
-                    sop_label = (sop_number, sop_title)
-
-                    if sop_label not in seen_sop_labels and (
-                        sop_number or sop_title
-                    ):
-                        seen_sop_labels.add(sop_label)
-                        related_sops.append(
-                            {
-                                "sop_number": sop_number,
-                                "sop_title": sop_title,
-                            }
-                        )
-
-                history[-1]["related_sops"] = related_sops
-
-                if related_sops:
-                    with question_sop_placeholder.container():
-                        st.markdown("**Relevant SOP:**")
-                        for sop in related_sops:
-                            st.markdown(
-                                f"📘 **{sop['sop_number']} — "
-                                f"{sop['sop_title']}**"
-                            )
-
                 # Show clickable SOP references before the generated answer.
                 if sources:
                     render_sop_sources(
                         sources,
                         key_prefix=f"history_sop_source_{len(history)}",
+                        fallback_scope=plant_code,
                     )
+
+                # Display plant-specific SOP identifiers at the start of the answer.
+                if sources:
+                    answer_refs = []
+                    seen_answer_refs = set()
+                    for source in sources:
+                        reference = format_sop_reference(source, plant_code)
+                        if reference not in seen_answer_refs:
+                            seen_answer_refs.add(reference)
+                            answer_refs.append(reference)
+                    if answer_refs:
+                        st.markdown("**Relevant SOP Number(s):** " + " · ".join(
+                            f"`{reference}`" for reference in answer_refs
+                        ))
 
                 st.markdown(answer_text)
 
