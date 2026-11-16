@@ -944,27 +944,37 @@ if prompt:
 
                 sources = unique_sources
 
-                # Show clickable SOP references before the generated answer.
+                # Show each relevant SOP as a clickable number-and-title item.
+                # Expanding an item reveals the retrieved details for that SOP.
                 if sources:
-                    render_sop_sources(
-                        sources,
-                        key_prefix=f"history_sop_source_{len(history)}",
-                        fallback_scope=plant_code,
-                    )
-
-                # Display plant-specific SOP identifiers at the start of the answer.
-                if sources:
-                    answer_refs = []
-                    seen_answer_refs = set()
+                    st.markdown("**Relevant SOPs**")
                     for source in sources:
                         reference = format_sop_reference(source, plant_code)
-                        if reference not in seen_answer_refs:
-                            seen_answer_refs.add(reference)
-                            answer_refs.append(reference)
-                    if answer_refs:
-                        st.markdown("**Relevant SOP Number(s):** " + " · ".join(
-                            f"`{reference}`" for reference in answer_refs
-                        ))
+                        sop_title = (
+                            source.get("sop_title") or "SOP title unavailable"
+                        )
+
+                        with st.expander(
+                            f"{reference} — {sop_title}",
+                            expanded=False,
+                        ):
+                            st.markdown(f"**SOP Number:** {reference}")
+                            st.markdown(f"**SOP Title:** {sop_title}")
+                            st.caption(
+                                "Source document: "
+                                f"{source.get('source_file', 'Not specified')}"
+                            )
+                            if source.get("distance") is not None:
+                                st.caption(
+                                    f"Similarity distance: {source['distance']}"
+                                )
+                            st.markdown("**Relevant SOP Details**")
+                            st.text(
+                                source.get(
+                                    "text",
+                                    "No source text is available.",
+                                )
+                            )
 
                 st.markdown(answer_text)
 
