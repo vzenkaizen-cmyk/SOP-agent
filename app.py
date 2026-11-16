@@ -254,9 +254,86 @@ if "default_scope_initialized" not in st.session_state:
 if "pending_question" not in st.session_state:
     st.session_state.pending_question = None
 
+if "selected_sop_source" not in st.session_state:
+    st.session_state.selected_sop_source = None
+
 
 def get_history(plant_code):
     return st.session_state.chat_history.setdefault(plant_code, [])
+
+
+def get_sop_source_key(source):
+    """Create a stable identity for a retrieved SOP source."""
+    return (
+        str(source.get("sop_number", "")),
+        str(source.get("sop_title", "")),
+        str(source.get("source_file", "")),
+    )
+
+
+def select_sop_source(source):
+    """Remember which clickable SOP reference the user selected."""
+    st.session_state.selected_sop_source = source
+
+
+def render_sop_sources(sources, key_prefix):
+    """Show clickable SOP number/title references and their source content."""
+    if not sources:
+        return
+
+    unique_sources = []
+    seen_sources = set()
+
+    for source in sources:
+        source_key = get_sop_source_key(source)
+        if source_key not in seen_sources:
+            seen_sources.add(source_key)
+            unique_sources.append(source)
+
+    st.markdown("**Relevant SOP References**")
+
+    for index, source in enumerate(unique_sources):
+        sop_number = source.get("sop_number") or "SOP number unavailable"
+        sop_title = source.get("sop_title") or "SOP title unavailable"
+
+        st.button(
+            f"📘 {sop_number} — {sop_title}",
+            key=f"{key_prefix}_{index}",
+            use_container_width=True,
+            on_click=select_sop_source,
+            args=(source,),
+        )
+
+    selected_source = st.session_state.get("selected_sop_source")
+    if (
+        selected_source
+        and get_sop_source_key(selected_source) in seen_sources
+    ):
+        selected_number = (
+            selected_source.get("sop_number") or "SOP number unavailable"
+        )
+        selected_title = (
+            selected_source.get("sop_title") or "SOP title unavailable"
+        )
+
+        with st.expander(
+            f"{selected_number} — {selected_title}",
+            expanded=True,
+        ):
+            st.markdown(f"**SOP Number:** {selected_number}")
+            st.markdown(f"**SOP Title:** {selected_title}")
+            st.caption(
+                f"Source document: "
+                f"{selected_source.get('source_file', 'Not specified')}"
+            )
+            if selected_source.get("distance") is not None:
+                st.caption(
+                    f"Similarity distance: {selected_source['distance']}"
+                )
+            st.markdown("**Relevant SOP Content**")
+            st.text(
+                selected_source.get("text", "No source text is available.")
+            )
 
 
 @st.cache_resource(show_spinner=False)
@@ -710,25 +787,22 @@ if not history and st.session_state.pending_question is None:
 # Previous conversation
 # ---------------------------------------------------------------------------
 
-for turn in history:
+for turn_index, turn in enumerate(history):
     with st.chat_message(turn["role"]):
         st.markdown(turn["content"])
 
-        if turn.get("sources"):
-            with st.expander(f"Sources ({len(turn['sources'])})"):
-                for source in turn["sources"]:
-                    st.markdown(
-                        f"**SOP {source['sop_number']}: "
-                        f"{source['sop_title']}**  \n"
-                        f"*{source['source_file']} · "
-                        f"similarity distance {source['distance']}*"
-                    )
-                    source_text = source["text"]
-                    st.text(
-                        source_text[:600]
-                        + ("..." if len(source_text) > 600 else "")
-                    )
-                    st.markdown("---")
+        if turn["role"] == "user" and turn.get("related_sops"):
+            st.markdown("**Relevant SOP:**")
+            for sop in turn["related_sops"]:
+                st.markdown(
+                    f"📘 **{sop['sop_number']} — {sop['sop_title']}**"
+                )
+
+        if turn["role"] == "assistant" and turn.get("sources"):
+            render_sop_sources(
+                turn["sources"],
+                key_prefix=f"history_sop_source_{turn_index}",
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -744,12 +818,20 @@ if pending_question is not None:
 
 
 if prompt:
+    st.session_state.selected_sop_source = None
+
     history.append(
-        {"role": "user", "content": prompt, "sources": None}
+        {
+            "role": "user",
+            "content": prompt,
+            "sources": None,
+            "related_sops": [],
+        }
     )
 
     with st.chat_message("user"):
         st.markdown(prompt)
+        question_sop_placeholder = st.empty()
 
     with st.chat_message("assistant"):
         if True:
@@ -823,23 +905,57 @@ if prompt:
                 ).strip()
                 sources = result.get("sources", []) or []
 
-                st.markdown(answer_text)
+                # Keep distinct SOP references and their complete source data.
+                unique_sources = []
+                seen_source_keys = set()
 
-                if sources:
-                    with st.expander(f"Sources ({len(sources)})"):
-                        for source in sources:
+                for source in sources:
+                    source_key = get_sop_source_key(source)
+                    if source_key not in seen_source_keys:
+                        seen_source_keys.add(source_key)
+                        unique_sources.append(source)
+
+                sources = unique_sources
+
+                # Add relevant SOP number/title directly below the question.
+                related_sops = []
+                seen_sop_labels = set()
+
+                for source in sources:
+                    sop_number = source.get("sop_number", "")
+                    sop_title = source.get("sop_title", "")
+                    sop_label = (sop_number, sop_title)
+
+                    if sop_label not in seen_sop_labels and (
+                        sop_number or sop_title
+                    ):
+                        seen_sop_labels.add(sop_label)
+                        related_sops.append(
+                            {
+                                "sop_number": sop_number,
+                                "sop_title": sop_title,
+                            }
+                        )
+
+                history[-1]["related_sops"] = related_sops
+
+                if related_sops:
+                    with question_sop_placeholder.container():
+                        st.markdown("**Relevant SOP:**")
+                        for sop in related_sops:
                             st.markdown(
-                                f"**SOP {source['sop_number']}: "
-                                f"{source['sop_title']}**  \n"
-                                f"*{source['source_file']} · "
-                                f"similarity distance {source['distance']}*"
+                                f"📘 **{sop['sop_number']} — "
+                                f"{sop['sop_title']}**"
                             )
-                            source_text = source["text"]
-                            st.text(
-                                source_text[:600]
-                                + ("..." if len(source_text) > 600 else "")
-                            )
-                            st.markdown("---")
+
+                # Show clickable SOP references before the generated answer.
+                if sources:
+                    render_sop_sources(
+                        sources,
+                        key_prefix=f"history_sop_source_{len(history)}",
+                    )
+
+                st.markdown(answer_text)
 
             except Exception as exc:
                 answer_text = (
