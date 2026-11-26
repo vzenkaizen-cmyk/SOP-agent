@@ -3,7 +3,7 @@ app.py
 ------
 Vidullanka IDSS — Plant Operations Assistant
 
-Run:
+Run: 
     streamlit run app.py
 """
 
